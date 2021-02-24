@@ -6,6 +6,39 @@ using System.Threading.Tasks;
 
 namespace Scarlett_Sideloader
 {
+    public class CommitalInfo
+    { 
+        public string Id { get; set; }
+    }
+
+    public class NeededMetadata
+    {
+        public string ChunkSize { get; set; }
+    }
+    public class Identity
+    {
+        public string Name { get; set; }
+        public string PackageFamilyName { get; set; }
+        public string Publisher { get; set; }
+        public string PublisherDisplayName { get; set; }
+    }
+    public class uploadinfo
+    { 
+        public string XfusId { get; set; }
+        public string SasUrl { get; set; }
+    }
+
+    public class NeededUploadInfo
+    {
+        public string Id { get; set; }
+        public uploadinfo UploadInfo { get; set; }
+    }
+
+    public class CreateUploadInfo 
+    {
+        public string FileName { get; set; }            
+        public string MarketGroupId { get; set; } = null;
+    }
 
     public class NeededSubmissionInfo
     { 

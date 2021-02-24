@@ -6,6 +6,21 @@ using System.Threading.Tasks;
 
 namespace Scarlett_Sideloader
 {
+    public class SupportedTargetPlatforms
+    {
+        public string Desktop { get; set; } = "Enabled";
+        public string Mobile { get; set; } = "Enabled";
+        public string Holographic { get; set; } = "Enabled";
+        public string Team { get; set; } = "Enabled";
+        public string Xbox { get; set; } = "Enabled";
+        public string Core { get; set; } = "Enabled";
+    }
+
+    public class TargetPlatforms
+    {
+        public SupportedTargetPlatforms SupportedTargetPlatforms { get; set; } = new SupportedTargetPlatforms();
+    }
+
 
     public class Product
     {
