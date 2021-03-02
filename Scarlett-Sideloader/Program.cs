@@ -16,6 +16,8 @@ using System.IO.Compression;
 using System.Xml.Linq;
 using System.Web;
 using System.Diagnostics;
+using HtmlAgilityPack;
+using System.Net.Http.Headers;
 
 namespace Scarlett_Sideloader
 {
@@ -23,6 +25,7 @@ namespace Scarlett_Sideloader
     {
         public static Uri partneruri = new Uri("https://partner.microsoft.com/");
         public static Uri xboxuri = new Uri("https://upload.xboxlive.com/");
+        public static Uri xbluri = new Uri("https://xorc.xboxlive.com/");
 
         public static HttpClient client;
 
@@ -158,7 +161,7 @@ namespace Scarlett_Sideloader
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Creating APP with name {appname}: ");
             NeededAppInfo createdappinfo = CreateApp(createappinfo);
-            if (createappinfo == null)
+            if (createdappinfo == null)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Failed to create app, name is likely already taken");
@@ -260,6 +263,143 @@ namespace Scarlett_Sideloader
                 Console.WriteLine("Failed to set age ratings for app, cookie is likely invalid");
             }
 
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write($"Setting properties for {appname}: ");
+            //set properties
+            //get needed verification token
+            string requestverificationtoken = GetRequestToken(createdappinfo, neededsubmissioninfo);
+            if (requestverificationtoken == null) 
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Failed to get requestverificationtoken");
+                return;
+            }
+
+            if (SetProperties(createdappinfo, neededsubmissioninfo, requestverificationtoken, app))
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Success!\n");
+            } else {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Failed to set properties");
+                return;
+            }
+
+            if (!app)
+            {
+                //get xbl auth token
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Getting Xbox Live Auth Token for {appname}: ");
+                ReturnedAuthInfo returnedauthinfo = GetXBLAuthToken(createdappinfo, "CERT CERT.DEBUG RETAIL ALL HIDDEN HISTORY");
+                if (returnedauthinfo == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to get Xbox Live Auth Token");
+                    return;
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("Success!\n");
+                }
+
+                //get xblids
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Getting Xbox Live IDs for {appname}: ");
+                GetXBLids(createdappinfo, HttpMethod.Options, null);
+                XBLids xblids = GetXBLids(createdappinfo, HttpMethod.Get, returnedauthinfo);
+                if (xblids == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to get Xbox Live IDs");
+                    return;
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                //enable xbl for app
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Enabling Xbox Live for {appname}: ");
+                EnableXBL(xblids, HttpMethod.Options, null, null);
+                if (EnableXBL(xblids, HttpMethod.Post, returnedauthinfo, appname))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                } else {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to enable Xbox Live");
+                    return;
+                }
+
+                //get acc info
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Getting acc info: ");
+                GetAccountInfo(xblids, HttpMethod.Options, null);
+                XBLaccInfo xblaccinfo = GetAccountInfo(xblids, HttpMethod.Get, returnedauthinfo);
+                if (xblaccinfo != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                } else {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to get acc info");
+                    return;
+                }
+
+                //get auth token for sandbox
+                ReturnedAuthInfo returnedsandboxauthinfo = GetXBLAuthToken(createdappinfo, $"{xblaccinfo.OpenTierSandboxId} RETAIL");
+
+                //send validation request
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Sending validation request: ");
+                ValidateSandbox(xblids, HttpMethod.Options, null, xblaccinfo);
+                string sourceversion = ValidateSandbox(xblids, HttpMethod.Post, returnedsandboxauthinfo, xblaccinfo);
+                if (sourceversion != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to send validation request");
+                    return;
+                }
+
+                //send copy request
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Copying {xblaccinfo.OpenTierSandboxId} SANDBOX to RETAIL: ");
+                CopySandbox(xblids, HttpMethod.Options, null, xblaccinfo);
+                if (CopySandbox(xblids, HttpMethod.Post, returnedsandboxauthinfo, xblaccinfo))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to copy");
+                    return;
+                }
+
+                //send publish request
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Publishing Sandbox: ");
+                PublishSandbox(xblids, HttpMethod.Options, null, xblaccinfo, sourceversion);
+                if (PublishSandbox(xblids, HttpMethod.Post, returnedsandboxauthinfo, xblaccinfo, sourceversion))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to publish");
+                    return;
+                }
+            }
             //patch the package
             if (!original) 
             {
@@ -315,6 +455,7 @@ namespace Scarlett_Sideloader
                     Console.Write("Unknown filetype\n");
                     return;
                 }
+
                 
                 if (!uploadfile)
                 {
@@ -376,7 +517,9 @@ namespace Scarlett_Sideloader
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Failed to get upload info for app, cookie is likely invalid");
             }
+
             string token = HttpUtility.ParseQueryString(new Uri(neededuploadinfo.UploadInfo.SasUrl).Query).Get("token");
+            
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting Metadata for {appname}: ");
@@ -511,6 +654,8 @@ namespace Scarlett_Sideloader
                 Console.WriteLine("Failed to set target platforms");
                 return;
             }
+            
+
             Console.WriteLine();
 
             // TODO: a great app
@@ -522,6 +667,936 @@ namespace Scarlett_Sideloader
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return new string(Enumerable.Repeat(chars, length)
               .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+
+
+        static string GetRequestToken(NeededAppInfo createdappinfo, NeededSubmissionInfo neededsubmissioninfo)
+        {
+            Thread.Sleep(5000);
+            string url = (partneruri.ToString() + $"en-us/dashboard/products/{createdappinfo.bigId}/submissions/{neededsubmissioninfo.id}/properties");
+            var response = client.GetAsync(url);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                var result = response.Result.Content.ReadAsStringAsync();
+                result.Wait();
+                string responseresult = result.Result;
+                HtmlDocument pageDocument = new HtmlDocument();
+                pageDocument.LoadHtml(responseresult);
+                var node = pageDocument.DocumentNode.SelectSingleNode("//*[@name=\"__RequestVerificationToken\"]");
+                string token = node.Attributes["Value"].Value;
+                return token;
+            }
+            else
+            {
+                var result = response.Result.Content.ReadAsStringAsync();
+                result.Wait();
+                string responseresult = result.Result;
+                return null;
+            }
+        }
+
+        static bool SetProperties(NeededAppInfo createdappinfo, NeededSubmissionInfo neededsubmissioninfo, string verificationtoken, bool app)
+        {
+            MultipartFormDataContent form = new MultipartFormDataContent(("------WebKitFormBoundary" + RandomString(16)));
+            if (!app)
+            {
+                HttpContent tempcontent;
+                tempcontent = new StringContent(verificationtoken);
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "__RequestVerificationToken" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("0");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.Id" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("False");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsAddOn" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AddOnId" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("0");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AddOnSubmissionId" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AreGamingOptionsEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsUrlFieldMigrated" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Games");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "Category" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("true");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[0].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[0].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("ActionAndAdventure");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[0].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[1].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("CardAndboard");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[1].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[2].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Casino");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[2].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[3].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Classics");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[3].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[4].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Educational");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[4].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[5].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("FamilyAndKids");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[5].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[6].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Fighting");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[6].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[7].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("MultiPlayerOnlineBattleArena");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[7].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[8].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("GamesMusic");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[8].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[9].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Other");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[9].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[10].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Platformer");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[10].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[11].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("PuzzleAndTrivia");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[11].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[12].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("RacingAndFlying");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[12].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[13].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("RolePlaying");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[13].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[14].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Shooter");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[14].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[15].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Simulation");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[15].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[16].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("GamesSports");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[16].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[17].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Strategy");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[17].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[18].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Tools");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[18].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[19].Selected" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Word");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "AllGenres[19].Genre" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("Yes");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "PrivatePolicyRequiredState" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("test.com");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "PrivatePolicyUrl" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "WebsiteUrl" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "SupportContact" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.SinglePlayer.IsDesktopSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.SinglePlayer.IsXboxSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.SharedSplitScreen.IsDesktopSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.SharedSplitScreen.IsXboxSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsLocalMultiplayer" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsOnlineMultiplayer" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsCrossPlayEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsLocalCooperative" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsOnlineCooperative" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.CrossPlatformCoop.IsEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("true");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsBroadcastingPrivilegeGranted" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.IsBroadcastingPrivilegeGranted" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.Resolution4k.IsXboxSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.HighDynamicRange.IsDesktopSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.HighDynamicRange.IsXboxSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.VariableRefreshRate.IsDesktopSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.MixedReality.IsDesktopSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.MixedReality.IsHolographicSupported" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "Has3rdPartyIAP" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsAccessible" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("true");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsRemovableMediaEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsRemovableMediaEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("true");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsBackupRestoreEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsBackupRestoreEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("true");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsGameDvrEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "IsGameDvrEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "CanSendKinectDataToExternal" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.Continuum.IsEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.PenInk.IsEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "GamingOptions.Cortana.IsEnabled" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[0].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("tch");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[0].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[0].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[0].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("tch");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[0].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[0].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[1].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("kbd");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[1].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[1].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[1].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("kbd");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[1].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[1].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[2].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mse");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[2].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[2].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[2].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mse");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[2].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[2].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[3].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("cmr");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[3].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[3].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[3].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("cmr");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[3].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[3].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[4].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("hce");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[4].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[4].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[4].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("hce");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[4].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[4].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[5].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("nfc");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[5].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[5].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[5].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("nfc");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[5].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[5].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[6].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("ble");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[6].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[6].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[6].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("ble");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[6].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[6].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[7].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("tel");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[7].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[7].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[7].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("tel");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[7].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[7].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[8].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mic");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[8].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[8].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[8].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mic");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[8].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[8].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[9].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("xgp");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[9].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[9].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[9].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("xgp");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[9].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[9].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[10].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mct");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[10].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[10].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[10].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mct");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[10].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[10].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[11].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mrc");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[11].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareMinimum[11].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("false");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[11].IsChecked" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("mrc");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[11].HardwareItem.ShortCode" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("True");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.HardwareRecommended[11].IsPermissionSatisfied" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.RamMinSelection" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.RamRecSelection" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.DirectXMinSelection" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.DirectXRecSelection" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.VideoRamMinSelection" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.VideoRamRecSelection" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.ProcessorMinText" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.ProcessorRecText" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.GraphicsMinText" };
+                form.Add(tempcontent);
+                tempcontent = new StringContent("");
+                tempcontent.Headers.Clear();
+                tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.GraphicsRecText" };
+                form.Add(tempcontent);
+            }
+            string url = (partneruri.ToString() + $"en-us/dashboard/listings/properties/Properties?appId={createdappinfo.bigId}&submissionId={neededsubmissioninfo.id}");
+            var response = client.PostAsync(url, form);
+            response.Wait();
+            int statuscode = (int)response.Result.StatusCode;
+            if (statuscode < 400)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        static XBLids GetXBLids(NeededAppInfo neededappinfo, HttpMethod httpmethod, ReturnedAuthInfo returnedauthinfo)
+        {
+            string url = xbluri.ToString() + $"products?alternateId={neededappinfo.bigId}";
+            var request = new HttpRequestMessage(httpmethod, url);
+            if (returnedauthinfo != null) 
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+            }
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                return JsonConvert.DeserializeObject<List<XBLids>>(responseresult)[0];
+            }
+            else
+            {
+                return null;
+            }
+        }
+        static bool EnableXBL(XBLids xblids, HttpMethod httpmethod, ReturnedAuthInfo returnedauthinfo, string name)
+        {
+            string url = xbluri.ToString() + $"products/{xblids.ProductId}/enable";
+            var request = new HttpRequestMessage(httpmethod, url);
+            request.Headers.Add("Origin", partneruri.ToString());
+            if (returnedauthinfo != null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+                EnableClass enableclass = new EnableClass() { LocalizedTitleNames =  new List<LocalizedTitleName>() { new LocalizedTitleName() {Value = $"{name} - Game" } } };
+                var content = JsonConvert.SerializeObject(enableclass);
+                request.Content = new StringContent(content, System.Text.Encoding.UTF8, "application/json");
+            } else {
+                request.Headers.Add("Access-Control-Request-Method", "POST");
+            }
+
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        static XBLaccInfo GetAccountInfo(XBLids xblids, HttpMethod httpmethod, ReturnedAuthInfo returnedauthinfo)
+        {
+            string url = xbluri.ToString() + $"accounts/{xblids.AccountId}";
+            var request = new HttpRequestMessage(httpmethod, url);
+            request.Headers.Add("Origin", partneruri.ToString());
+            if (returnedauthinfo != null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+            }
+            else
+            {
+                request.Headers.Add("Access-Control-Request-Method", "GET");
+            }
+
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                return JsonConvert.DeserializeObject<XBLaccInfo>(responseresult);
+            }
+            else
+            {
+                    return null;
+            }
+        }
+
+        static string ValidateSandbox(XBLids xblids, HttpMethod httpmethod, ReturnedAuthInfo returnedauthinfo, XBLaccInfo xblaccinfo)
+        {
+            string url = xbluri.ToString() + $"products/{xblids.ProductId}/sandboxes/{xblaccinfo.OpenTierSandboxId}/publish?option=Validate";
+            var request = new HttpRequestMessage(httpmethod, url);
+            
+            if (returnedauthinfo != null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+                request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+            }
+            else
+            {
+                request.Headers.Add("Access-Control-Request-Method", "POST");
+            }
+
+            request.Headers.Add("Origin", partneruri.ToString());
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                if (responseresult != "")
+                {
+                    TempValidateClass responseobject = JsonConvert.DeserializeObject<TempValidateClass>(responseresult);
+                    string status = responseobject.Status;
+                    while (status != "Success") 
+                    {
+                        Thread.Sleep(5000);
+                        request = new HttpRequestMessage(httpmethod, url);
+                        request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+                        request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+                        response = client.SendAsync(request);
+                        response.Wait();
+                        responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                        responseobject = JsonConvert.DeserializeObject<TempValidateClass>(responseresult);
+                        status = responseobject.Status;
+                    }
+                    return responseobject.SourceVersion;
+                } else {
+                    return null;
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        static bool CopySandbox(XBLids xblids, HttpMethod httpmethod, ReturnedAuthInfo returnedauthinfo, XBLaccInfo xblaccinfo)
+        {
+            string url = xbluri.ToString() + $"products/{xblids.ProductId}/sandboxes/RETAIL/sources/{xblaccinfo.OpenTierSandboxId}/copy";
+            var request = new HttpRequestMessage(httpmethod, url);
+            
+            if (returnedauthinfo != null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+                request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+            }
+            else
+            {
+                request.Headers.Add("Access-Control-Request-Method", "POST");
+            }
+
+            request.Headers.Add("Origin", partneruri.ToString());
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                if (responseresult != "" && httpmethod == HttpMethod.Post)
+                {      
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        static bool PublishSandbox(XBLids xblids, HttpMethod httpmethod, ReturnedAuthInfo returnedauthinfo, XBLaccInfo xblaccinfo, string sourceversion)
+        {
+            string url = xbluri.ToString() + $"products/{xblids.ProductId}/sandboxes/{xblaccinfo.OpenTierSandboxId}/publish";
+            var request = new HttpRequestMessage(httpmethod, $"{url}?option=Publish&version={sourceversion}");
+            
+            if (returnedauthinfo != null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+                request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+            }
+            else
+            {
+                request.Headers.Add("Access-Control-Request-Method", "POST");
+            }
+
+            request.Headers.Add("Origin", partneruri.ToString());
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode && httpmethod == HttpMethod.Post)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                if (responseresult != "")
+                {
+                    TempValidateClass responseobject = JsonConvert.DeserializeObject<TempValidateClass>(responseresult);
+                    string status = responseobject.Status;
+                    while (status != "Success") 
+                    {
+                        Thread.Sleep(2000);
+                        request = new HttpRequestMessage(HttpMethod.Get, url);
+                        request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
+                        request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+                        response = client.SendAsync(request);
+                        response.Wait();
+                        responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                        responseobject = JsonConvert.DeserializeObject<TempValidateClass>(responseresult);
+                        status = responseobject.Status;
+                    }
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        static ReturnedAuthInfo GetXBLAuthToken(NeededAppInfo neededappinfo, string sandboxes)
+        {
+            string url = partneruri.ToString() + $"xdts/authorize";
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Content = new StringContent(JsonConvert.SerializeObject(new XBLAuthInfo() { Properties = new PropertiesClass() { DseAppId = neededappinfo.bigId, Sandboxes = sandboxes } }));
+            var response = client.SendAsync(request);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                return JsonConvert.DeserializeObject<ReturnedAuthInfo>(responseresult);
+            }
+            else
+            {
+                return null;
+            }
         }
 
         static PublisherInfo GetPublisherInfo()

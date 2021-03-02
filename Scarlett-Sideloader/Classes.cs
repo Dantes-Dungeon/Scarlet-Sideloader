@@ -6,6 +6,20 @@ using System.Threading.Tasks;
 
 namespace Scarlett_Sideloader
 {
+    public class TempValidateClass
+    {
+        public string Status { get; set; }
+        public string StatusMessage { get; set; }
+        public string SourceVersion { get; set; }
+    }
+
+    public class XBLaccInfo
+    {
+        public string AccountId { get; set; }
+        public string Moniker { get; set; }
+        public string OpenTierSandboxId { get; set; }
+    }
+    
     public class CommitalInfo
     { 
         public string Id { get; set; }

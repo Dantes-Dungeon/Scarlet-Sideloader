@@ -6,6 +6,75 @@ using System.Threading.Tasks;
 
 namespace Scarlett_Sideloader
 {
+    public class LocalizedTitleName
+    {
+        public string Locale { get; set; } = "en-US";
+        public string Value { get; set; }
+    }
+
+    public class EnableClass
+    {
+        public string ProductType { get; set; } = "Game";
+        public string XboxLiveTier { get; set; } = "Open";
+        public List<LocalizedTitleName> LocalizedTitleNames { get; set; } = new List<LocalizedTitleName>() { new LocalizedTitleName(){} };
+        public List<string> TargetPlatforms { get; set; } = new List<string>() { "XboxOne", "WindowsOneCore" };
+        public string DevDisplayLocale { get; set; } = "en-US";
+    }
+
+
+    public class displayclaims
+    {
+        public string eid { get; set; }
+        public string enm { get; set; }
+        public string eam { get; set; }
+        public string eat { get; set; }
+        public string eai { get; set; }
+        public string epi { get; set; }
+        public string ept { get; set; }
+        public string esi { get; set; }
+        public string eap { get; set; }
+        public string eps { get; set; }
+    }
+
+    public class ReturnedAuthInfo
+    {
+        public string Token { get; set; }
+        public displayclaims DisplayClaims { get; set; }
+    }
+
+    public class PropertiesClass
+    {
+        public string DseAppId { get; set; }
+        public string Sandboxes { get; set; } = "CERT CERT.DEBUG RETAIL ALL HIDDEN HISTORY";
+    }
+
+    public class XBLAuthInfo
+    {
+        public PropertiesClass Properties { get; set; } = new PropertiesClass();
+        public string TokenType { get; set; } = "http://oauth.net/grant_type/jwt/1.0/bearer";
+        public string RelyingParty { get; set; } = "http://developer.xboxlive.com";
+    }
+
+    public class AlternateId
+    {
+        public string Value { get; set; }
+        public int AlternateIdType { get; set; }
+    }
+
+    public class XBLids
+    {
+        public string AccountId { get; set; }
+        public string ProductId { get; set; }
+        public string MsaAppId { get; set; }
+        public string PfnId { get; set; }
+        public int TitleId { get; set; }
+        public string XboxLiveTier { get; set; }
+        public bool IsTest { get; set; }
+        public List<AlternateId> AlternateIds { get; set; }
+        public string PrimaryServiceConfigId { get; set; }
+        public string ProductName { get; set; }
+    }
+
     public class SupportedTargetPlatforms
     {
         public string Desktop { get; set; } = "Enabled";
