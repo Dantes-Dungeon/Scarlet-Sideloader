@@ -23,3 +23,7 @@ example:
 `dotnet Scarlett-Sideloader.dll -G testgroup -E test@domain.com <cookie (.AspNet.Cookies)> test.appxbundle`
 
 You can also use partner token to help speed up pulling the needed cookie from partner center.
+
+
+
+Ps: This will be my last release for a while
