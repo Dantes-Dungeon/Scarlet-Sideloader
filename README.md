@@ -1,5 +1,5 @@
 # Scarlet-Sideloader
-Quickly patch and push apps to retail 
+A cydia impactor style tool to quickly patch and push apps to retail 
 
 The code is extremly messy. The project is also based purely on reverse engineering using burpsuite, no documentation or proprietary information were used in the creation of this and it shows.
 ```
