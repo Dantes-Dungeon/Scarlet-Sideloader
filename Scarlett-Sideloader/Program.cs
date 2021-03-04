@@ -734,7 +734,11 @@ namespace Scarlett_Sideloader
                 return;
             }
 
-            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine($"You can observe the progress here:");
+            Console.WriteLine($"https://partner.microsoft.com/en-us/dashboard/products/{createdappinfo.bigId}/submissions/{neededsubmissioninfo.id}/CertificationStatus\n");
+            Console.WriteLine("Once the app passes certification you can use the following deeplink to install the app:");
+            Console.WriteLine($"ms-windows-store://pdp/?productid={createdappinfo.bigId}");
 
             // TODO: idk man why the f*** are you looking at my code in so much depth that you found this
             //curse words: f***, s***, c***, b****, a***
