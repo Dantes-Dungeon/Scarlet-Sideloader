@@ -1,7 +1,8 @@
 {
   "profiles": {
     "Scarlett-Sideloader": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": " "
     }
   }
 }

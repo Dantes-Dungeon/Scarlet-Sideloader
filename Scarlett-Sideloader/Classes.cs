@@ -6,6 +6,35 @@ using System.Threading.Tasks;
 
 namespace Scarlett_Sideloader
 {
+    public class SubmitInfo 
+    {
+        public bool isAutoPromotionEnabled { get; set; } = false;
+        public bool isCertParallelPublishingEnabled { get; set; } = false;
+    }
+
+    public class UpdateStatus 
+    {
+        public int fileStatus { get; set; } = 3;
+        public string fileKey { get; set; } = "Keynis";
+    }
+
+    public class ScreenshotResponse 
+    {
+        public string FileId { get; set; }
+        public string UploadSasUrl { get; set; }
+        public string UploadSasExpirationUtc { get; set; }
+    }
+    public class ScreenshotInfo 
+    {
+        public string fileKey { get; set; } = "Keynis";
+        public string fileName { get; set; } = "blank.png";
+    }
+    public class ListingInfo
+    {
+        public string RequestVerificationToken { get; set; }
+        public string ListingId { get; set; }
+    }
+
     public class TempValidateClass
     {
         public string Status { get; set; }

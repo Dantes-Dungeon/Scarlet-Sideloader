@@ -6,6 +6,23 @@ using System.Threading.Tasks;
 
 namespace Scarlett_Sideloader
 {
+    public class Language
+    {
+        public bool Selected { get; set; }
+        public int Id { get; set; }
+        public string DisplayName { get; set; }
+    }
+
+    public class Languages
+    {
+        public List<Language> SupportedLanguages { get; set; } = new List<Language>() { new Language() { Selected = true, Id = 4, DisplayName = "English (United States)" } };
+        public List<Language> OptionalLanguages { get; set; } = new List<Language>() { };
+        public string AppId { get; set; }
+        public string SubId { get; set; }
+        public bool IsEditable { get; set; } = true;
+        public int ProductType { get; set; } = 4;
+    }
+
     public class LocalizedTitleName
     {
         public string Locale { get; set; } = "en-US";
