@@ -19,11 +19,11 @@ Options:
   --version                    Show version information
   -?, -h, --help               Show help and usage information
 ```
-example:
+## Example
 `dotnet Scarlett-Sideloader.dll -G testgroup -E test@domain.com <cookie (.AspNet.Cookies)> test.appxbundle`
-
 You can also use partner token to help speed up pulling the needed cookie from partner center.
 
-
+## Config
+You will need to create a folder in the same dir as the exe called appx packer and add makemsix to that folder. If you have a folder set up for appxpacker already you can just drop in that same folder and it should work
 
 Ps: This will be my last release for a while
