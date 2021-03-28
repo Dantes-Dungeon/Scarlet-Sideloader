@@ -35,4 +35,4 @@ jobs:
         TAG: ${GITHUB_SHA::6}
       with:
         name: build
-        path: ./Scarlet-Sideloader/Scarlet-Sideloader/Scarlett-Sideloader/release.${TAG}.tar.gz
+        path: "Scarlet-Sideloader/Scarlet-Sideloader/Scarlett-Sideloader/release.${TAG}.tar.gz"
