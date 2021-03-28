@@ -19,6 +19,8 @@ jobs:
         dotnet-version: 5.0.x
     - name: Enter solution dir
       run: cd Scarlett-Sideloader
+    - name: Test
+      run: ls
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
