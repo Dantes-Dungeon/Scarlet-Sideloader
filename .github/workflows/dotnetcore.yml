@@ -31,7 +31,9 @@ jobs:
         cd Scarlett-Sideloader
         dotnet test --no-build --verbosity normal
     - name: Upload artifact
-      run: ls
+      run: |
+        cd Scarlett-Sideloader
+        ls
     - uses: actions/upload-artifact@v2
       env: 
         TAG: ${GITHUB_SHA::6}
