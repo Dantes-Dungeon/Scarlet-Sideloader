@@ -33,4 +33,4 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: build
-        path: ./Scarlet-Sideloader/Scarlet-Sideloader/Scarlett-Sideloader/release.${GITHUB_SHA::6}.tar.gz
+        path: ./Scarlet-Sideloader/Scarlet-Sideloader/Scarlett-Sideloader/release.${{ GITHUB_SHA::6}}.tar.gz
