@@ -24,8 +24,8 @@ jobs:
     - name: Build
       run: |
         cd Scarlett-Sideloader
-        dotnet publish -c Release --no-restore -o release.${GITHUB_SHA::6}
-        tar czvf "release.${GITHUB_SHA::6}.tar.gz" "release.${GITHUB_SHA::6}"    
+        dotnet publish -c Release --no-restore -o release.${GITHUB_SHA}
+        tar czvf "release.${GITHUB_SHA}.tar.gz" "release.${GITHUB_SHA}"    
     - name: Test
       run: |
         cd Scarlett-Sideloader
@@ -39,4 +39,4 @@ jobs:
         TAG: ${GITHUB_SHA::6}
       with:
         name: build
-        path: "./Scarlett-Sideloader/release.${{ GITHUB_SHA::6 }}.tar.gz"
+        path: "./Scarlett-Sideloader/release.${{ GITHUB_SHA }}.tar.gz"
