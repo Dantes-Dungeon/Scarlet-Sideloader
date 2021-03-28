@@ -35,8 +35,6 @@ jobs:
     #    cd Scarlett-Sideloader
     #    ls
     - uses: actions/upload-artifact@v2
-      env: 
-        TAG: ${GITHUB_SHA::6}
       with:
         name: build
-        path: "./Scarlett-Sideloader/${GITHUB_SHA}.tar.gz"
+        path: "Scarlett-Sideloader/${GITHUB_SHA}.tar.gz"
