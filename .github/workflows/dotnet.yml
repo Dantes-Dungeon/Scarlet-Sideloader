@@ -24,8 +24,14 @@ jobs:
     - name: Build
       run: |
         cd Scarlett-Sideloader
-        dotnet build --no-restore
+        dotnet publish -c Release --no-restore -o release.${GITHUB_SHA::6}
+        tar czvf "release.${GITHUB_SHA::6}.tar.gz" "release.${GITHUB_SHA::6}"    
     - name: Test
       run: |
         cd Scarlett-Sideloader
         dotnet test --no-build --verbosity normal
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build
+        path: Scarlett-Sideloader/release.${GITHUB_SHA::6}.tar.gz
+      
