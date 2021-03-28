@@ -17,13 +17,15 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.x
-    - name: Enter solution dir
-      run: cd Scarlett-Sideloader
-    - name: Test
-      run: ls
     - name: Restore dependencies
-      run: dotnet restore
+      run: |
+        cd Scarlett-Sideloader
+        dotnet restore
     - name: Build
-      run: dotnet build --no-restore
+      run: |
+        cd Scarlett-Sideloader
+        dotnet build --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: |
+        cd Scarlett-Sideloader
+        dotnet test --no-build --verbosity normal
