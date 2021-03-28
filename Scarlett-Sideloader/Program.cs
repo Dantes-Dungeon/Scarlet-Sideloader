@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
-using System.IO.Compression;
+using System.IO.Compression;        
 using System.Xml.Linq;
 using System.Web;
 using System.Diagnostics;
@@ -406,6 +406,10 @@ namespace Scarlett_Sideloader
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Extracting {filename}: ");
                     string bundlepath = Path.Join(Path.GetTempPath(), "bundle");
+                    if (Directory.Exists(bundlepath))
+                    {
+                       Directory.Delete(bundlepath);
+                    }
                     ZipFile.ExtractToDirectory(file.FullName, bundlepath, true);
                     XDocument AppxBundleManifest = XDocument.Load(Path.Join(bundlepath, "AppxMetadata\\AppxBundleManifest.xml"));
                     XNamespace ns = AppxBundleManifest.Root.GetDefaultNamespace();
@@ -494,6 +498,58 @@ namespace Scarlett_Sideloader
                         Console.Write("MakeAppx.exe was not found\n");
                         return;
                     }
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write($"Generating appxsym for {filename}: ");
+                    string appxsymfilename = $"{Path.GetFileNameWithoutExtension(filepath)}.appxsym";
+                    string appxsympath = Path.Join(Path.GetTempPath(), appxsymfilename);
+                    if (File.Exists(appxsympath))
+                    {
+                        File.Delete(appxsympath);
+                    }
+                    //create sym zip file then add a dummy pdb lol
+                    using (var zip = ZipFile.Open(appxsympath, ZipArchiveMode.Create))
+                    {
+                        //create entry for file
+                        var entry = zip.CreateEntry("test.pdb");
+                        //set last write time to the current time
+                        entry.LastWriteTime = DateTimeOffset.Now;
+                        //open the file as a stream
+                        using (var stream = GenerateStreamFromString(""))
+                        using (var entryStream = entry.Open()) // copy the stream into the entry
+                            stream.CopyTo(entryStream);
+                    }
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write($"Generating appxupload from {filename}: ");
+                    string appxuploadfilename = $"{Path.GetFileNameWithoutExtension(filepath)}.appxupload";
+                    string appxuploadpath = Path.Join(Path.GetTempPath(), appxuploadfilename);
+                    if (File.Exists(appxuploadpath))
+                    {
+                        File.Delete(appxuploadpath);
+                    }
+                    //create upload zip file
+                    using (var zip = ZipFile.Open(appxuploadpath, ZipArchiveMode.Create))
+                    {
+                        //create entry for file
+                        var entry = zip.CreateEntry(filename);
+                        //set last write time to the current time
+                        entry.LastWriteTime = DateTimeOffset.Now;
+                        //open the file as a stream
+                        using (var stream = File.OpenRead(filepath))
+                        using (var entryStream = entry.Open()) // copy the stream into the entry
+                            stream.CopyTo(entryStream);
+                        //create entry for appxsym
+                        entry = zip.CreateEntry(appxsymfilename);
+                        //set last write time to the current time
+                        entry.LastWriteTime = DateTimeOffset.Now;
+                        //open the file as a stream
+                        using (var stream = File.OpenRead(appxsympath))
+                        using (var entryStream = entry.Open()) // copy the stream into the entry
+                            stream.CopyTo(entryStream);
+                    }
+                    filepath = appxuploadpath;
+                    filename = appxuploadfilename;
                 }
             }
             Console.ForegroundColor = ConsoleColor.White;
@@ -3211,6 +3267,15 @@ namespace Scarlett_Sideloader
                 return false;
             }
         }
- 
+        public static Stream GenerateStreamFromString(string str)
+        {
+            MemoryStream stream = new MemoryStream();
+            StreamWriter writer = new StreamWriter(stream);
+            writer.Write(str);
+            writer.Flush();
+            stream.Position = 0;
+            return stream;
+        }
+
     }
 }
