@@ -460,6 +460,7 @@ namespace Scarlett_Sideloader
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Patching appxmanifest for {filename}: ");
                     string packagepath = Path.Join(Path.GetTempPath(), "package");
+                    //clear out package path too
                     if (Directory.Exists(packagepath))
                     {
                        Directory.Delete(packagepath);
