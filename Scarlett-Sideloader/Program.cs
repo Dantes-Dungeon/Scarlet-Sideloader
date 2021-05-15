@@ -460,6 +460,10 @@ namespace Scarlett_Sideloader
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Patching appxmanifest for {filename}: ");
                     string packagepath = Path.Join(Path.GetTempPath(), "package");
+                    if (Directory.Exists(packagepath))
+                    {
+                       Directory.Delete(packagepath);
+                    }
                     ZipFile.ExtractToDirectory(filepath, packagepath, true);
                     XDocument AppxManifest = XDocument.Load(Path.Join(packagepath, "AppxManifest.xml"));
                     string defaultnamespace = AppxManifest.Root.GetDefaultNamespace().NamespaceName;
