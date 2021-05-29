@@ -511,6 +511,10 @@ namespace Scarlett_Sideloader
                     {
                         File.Delete(appxsympath);
                     }
+                    if (Directory.Exists(appxsympath))
+                    {
+                        Directory.Delete(appxsympath);
+                    }
                     //create sym zip file then add a dummy pdb lol
                     using (var zip = ZipFile.Open(appxsympath, ZipArchiveMode.Create))
                     {
@@ -532,6 +536,10 @@ namespace Scarlett_Sideloader
                     if (File.Exists(appxuploadpath))
                     {
                         File.Delete(appxuploadpath);
+                    }
+                    if (Directory.Exists(appxuploadpath))
+                    {
+                        Directory.Delete(appxuploadpath);
                     }
                     //create upload zip file
                     using (var zip = ZipFile.Open(appxuploadpath, ZipArchiveMode.Create))
@@ -3261,6 +3269,10 @@ namespace Scarlett_Sideloader
             if (File.Exists(outputpath))
             {
                 File.Delete(outputpath);
+            }
+            if (Directory.Exists(outputpath))
+            {
+                Directory.Delete(outputpath);
             }
 
             if (RunProcess(makeappxpath, args).ToLower().Contains("succeeded"))
