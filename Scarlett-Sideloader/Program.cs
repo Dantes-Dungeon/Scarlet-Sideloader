@@ -408,7 +408,7 @@ namespace Scarlett_Sideloader
                     string bundlepath = Path.Join(Path.GetTempPath(), "bundle");
                     if (Directory.Exists(bundlepath))
                     {
-                       Directory.Delete(bundlepath);
+                       Directory.Delete(bundlepath, true);
                     }
                     ZipFile.ExtractToDirectory(file.FullName, bundlepath, true);
                     XDocument AppxBundleManifest = XDocument.Load(Path.Join(bundlepath, "AppxMetadata\\AppxBundleManifest.xml"));
@@ -463,7 +463,7 @@ namespace Scarlett_Sideloader
                     //clear out package path too
                     if (Directory.Exists(packagepath))
                     {
-                       Directory.Delete(packagepath);
+                       Directory.Delete(packagepath, true);
                     }
                     ZipFile.ExtractToDirectory(filepath, packagepath, true);
                     XDocument AppxManifest = XDocument.Load(Path.Join(packagepath, "AppxManifest.xml"));
@@ -513,7 +513,7 @@ namespace Scarlett_Sideloader
                     }
                     if (Directory.Exists(appxsympath))
                     {
-                        Directory.Delete(appxsympath);
+                        Directory.Delete(appxsympath, true);
                     }
                     //create sym zip file then add a dummy pdb lol
                     using (var zip = ZipFile.Open(appxsympath, ZipArchiveMode.Create))
@@ -539,7 +539,7 @@ namespace Scarlett_Sideloader
                     }
                     if (Directory.Exists(appxuploadpath))
                     {
-                        Directory.Delete(appxuploadpath);
+                        Directory.Delete(appxuploadpath, true);
                     }
                     //create upload zip file
                     using (var zip = ZipFile.Open(appxuploadpath, ZipArchiveMode.Create))
@@ -3272,7 +3272,7 @@ namespace Scarlett_Sideloader
             }
             if (Directory.Exists(outputpath))
             {
-                Directory.Delete(outputpath);
+                Directory.Delete(outputpath, true);
             }
 
             if (RunProcess(makeappxpath, args).ToLower().Contains("succeeded"))
