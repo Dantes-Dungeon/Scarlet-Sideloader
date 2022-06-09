@@ -39,7 +39,7 @@ namespace Scarlett_Sideloader
                 new Option<string>(aliases: new String[] {"--description", "-D", "-d"}, description: "Description to display on store page.", getDefaultValue: ()=> "a really cool uwp app"),
                 new Option<string>(aliases: new String[] {"--screenshot", "-S", "-s"}, description: "Image to use for screenshot on storepage.", getDefaultValue: ()=> "blank.png"),
                 new Option<bool>(aliases: new String[] {"--app", "-A", "-a"},  description: "Install as an app rather than a game (defaults to game)."),
-                new Option<bool>(aliases: new String[] {"--private", "-P", "-p"}, description: "Push as private instead of defaulting to a public app", getDefaultValue: ()=> false),
+                new Option<bool>(aliases: new String[] {"--public", "-P", "-p"}, description: "Push as public instead of defaulting to a private app", getDefaultValue: ()=> false),
                 new Option<string?>(aliases: new String[] {"--emails", "-E", "-e"}, description: "Emails to whitelist, seperated by commas."),
                 new Option<string?>(aliases: new String[] {"--groups", "-G", "-g"}, description: "Group names to whitelist, seperated by commas."),
                 new Option<bool>(aliases: new String[] {"--original", "-O", "-o"}, description: "Keep package file as original."),
@@ -50,11 +50,11 @@ namespace Scarlett_Sideloader
             return await cmd.InvokeAsync(args);
         }
 
-        static public void HandleInput(string cookie, FileInfo file, string? name, string screenshotname, string description, bool app, bool privateapp, string? emails, string? groups, bool original, IConsole console)
+        static public void HandleInput(string cookie, FileInfo file, string? name, string screenshotname, string description, bool app, bool publicapp, string? emails, string? groups, bool original, IConsole console)
         {
             string filename = file.Name;
             string filepath = file.FullName;
-            if ((emails == null) && (groups == null) && privateapp)
+            if ((emails == null) && (groups == null) && !publicapp)
             {
                 Console.ForegroundColor = ConsoleColor.Blue;
                 Console.WriteLine("No emails or group provided, defaulting to test@test.com");
@@ -89,7 +89,7 @@ namespace Scarlett_Sideloader
             String[] grouplist;
             List<NeededGroupInfo> Neededgroups = new List<NeededGroupInfo>();
 
-            if (privateapp)
+            if (!publicapp)
             {
                 //strip whitespace out of groups and emails, not a function due to it only being done twice
                 if (emails != null)
@@ -219,9 +219,9 @@ namespace Scarlett_Sideloader
                 PublisherId = publisherinfo.sellerId,
                 Visibility = new APPVisibility()
                 {
-                    GroupIds = privateapp ? groupids : new List<string>(),
-                    DistributionMode = privateapp ? "Public" : "Hidden",
-                    Audience = privateapp ? "PrivateBeta" : "Public"
+                    GroupIds = publicapp ? new List<string>(): groupids,
+                    DistributionMode = publicapp ? "Hidden" : "Public",
+                    Audience = publicapp ? "Public" : "PrivateBeta"
                 }
             };
 
