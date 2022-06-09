@@ -36,26 +36,29 @@ namespace Scarlett_Sideloader
                 new Argument<string>("cookie", "Your asp.net.cookies"),
                 new Argument<FileInfo>("file", "The path to your appx, msix, appxbundle and msixbundle"),
                 new Option<string?>(aliases: new String[] {"--name", "-N", "-n"}, description: "Name to use for the app store page (if left blank it will be randomly generated)."),
+                new Option<string>(aliases: new String[] {"--description", "-D", "-d"}, description: "Description to display on store page.", getDefaultValue: ()=> "a really cool uwp app"),
+                new Option<string>(aliases: new String[] {"--screenshot", "-S", "-s"}, description: "Image to use for screenshot on storepage.", getDefaultValue: ()=> "blank.png"),
                 new Option<bool>(aliases: new String[] {"--app", "-A", "-a"},  description: "Install as an app rather than a game (defaults to game)."),
+                new Option<bool>(aliases: new String[] {"--private", "-P", "-p"}, description: "Push as private instead of defaulting to a public app", getDefaultValue: ()=> false),
                 new Option<string?>(aliases: new String[] {"--emails", "-E", "-e"}, description: "Emails to whitelist, seperated by commas."),
-                new Option<string?>(aliases: new String[] {"--groups", "-G", "-g"}, description: "Groups to whitelist, seperated by commas."),
+                new Option<string?>(aliases: new String[] {"--groups", "-G", "-g"}, description: "Group names to whitelist, seperated by commas."),
                 new Option<bool>(aliases: new String[] {"--original", "-O", "-o"}, description: "Keep package file as original."),
             };
 
-            cmd.Handler = CommandHandler.Create<string, FileInfo, string?, bool, string?, string?, bool, IConsole>(HandleInput);
+            cmd.Handler = CommandHandler.Create<string, FileInfo, string?, string, string, bool, bool, string?, string?, bool, IConsole>(HandleInput);
 
             return await cmd.InvokeAsync(args);
         }
 
-        static public void HandleInput(string cookie, FileInfo file, string? name, bool app, string? emails, string? groups, bool original, IConsole console)
+        static public void HandleInput(string cookie, FileInfo file, string? name, string screenshotname, string description, bool app, bool privateapp, string? emails, string? groups, bool original, IConsole console)
         {
             string filename = file.Name;
             string filepath = file.FullName;
-            if ((emails == null) && (groups == null))
+            if ((emails == null) && (groups == null) && privateapp)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("You must  set either a list of groups to whitelist or a list of emails to whitelist, you cannot leave both blank");
-                return;
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.WriteLine("No emails or group provided, defaulting to test@test.com");
+                emails = "test@test.com";
             }
             //set aspnet cookie and create http client
             CookieContainer cookieContainer = new CookieContainer();
@@ -86,52 +89,60 @@ namespace Scarlett_Sideloader
             String[] grouplist;
             List<NeededGroupInfo> Neededgroups = new List<NeededGroupInfo>();
 
-            //strip whitespace out of groups and emails, not a function due to it only being done twice
-            if (emails != null)
+            if (privateapp)
             {
-                emails = new string(emails.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
-                emaillist = emails.Split(",");
-                string groupname = RandomString(6);
-                CreateGroupInfo newgroup = new CreateGroupInfo() {
-                    name = groupname,
-                    members = emaillist
-                };
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write("Creating new group from emails: ");
-                NeededGroupInfo createdgroup = CreateGroup(newgroup);
-                if (createdgroup == null)
+                //strip whitespace out of groups and emails, not a function due to it only being done twice
+                if (emails != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to create group, cookie is likely invalid");
-                    return;
-                } else {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                }
-                Neededgroups.Add(createdgroup);
-            }
-            if (groups != null)
-            {
-                groups = new string(groups.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
-                grouplist = groups.Split(",");
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write("Pulling group info: ");
-                List<NeededGroupInfo> groupsjson = GetAllGroups();
-                if (groupsjson == null)
-                {
-
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to pull group info, cookie is likely invalid");
-                    return;
-                } else {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                }
-                foreach (NeededGroupInfo groupInfo in groupsjson)
-                {
-                    if (grouplist.Contains(groupInfo.name)) 
+                    emails = new string(emails.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
+                    emaillist = emails.Split(",");
+                    string groupname = RandomString(6);
+                    CreateGroupInfo newgroup = new CreateGroupInfo()
                     {
-                        Neededgroups.Add(groupInfo);
+                        name = groupname,
+                        members = emaillist
+                    };
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write("Creating new group from emails: ");
+                    NeededGroupInfo createdgroup = CreateGroup(newgroup);
+                    if (createdgroup == null)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Failed to create group, cookie is likely invalid");
+                        return;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("Success!\n");
+                    }
+                    Neededgroups.Add(createdgroup);
+                }
+                if (groups != null)
+                {
+                    groups = new string(groups.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
+                    grouplist = groups.Split(",");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write("Pulling group info: ");
+                    List<NeededGroupInfo> groupsjson = GetAllGroups();
+                    if (groupsjson == null)
+                    {
+
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Failed to pull group info, cookie is likely invalid");
+                        return;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("Success!\n");
+                    }
+                    foreach (NeededGroupInfo groupInfo in groupsjson)
+                    {
+                        if (grouplist.Contains(groupInfo.name))
+                        {
+                            Neededgroups.Add(groupInfo);
+                        }
                     }
                 }
             }
@@ -200,14 +211,17 @@ namespace Scarlett_Sideloader
 
             NeededSubmissionInfo neededsubmissioninfo = returnedsubmissions[0];
 
+
             StoreInfo storeinfo = new StoreInfo()
             {
                 ProductName = appname,
                 BigId = createdappinfo.bigId,
                 PublisherId = publisherinfo.sellerId,
-                Visibility = new APPVisibility() 
+                Visibility = new APPVisibility()
                 {
-                    GroupIds = groupids
+                    GroupIds = privateapp ? groupids : new List<string>(),
+                    DistributionMode = privateapp ? "Public" : "Hidden",
+                    Audience = privateapp ? "PrivateBeta" : "Public"
                 }
             };
 
@@ -760,8 +774,7 @@ namespace Scarlett_Sideloader
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting languages for {appname}: ");
             
-
-            if (SetListing(createdappinfo, neededsubmissioninfo, listinginfo, appname))
+            if (SetListing(createdappinfo, neededsubmissioninfo, listinginfo, appname, description))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("Success!\n");
@@ -776,7 +789,7 @@ namespace Scarlett_Sideloader
             //upload screenshot
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Adding screenshot for {appname}: ");
-            if (UploadScreenShot(neededsubmissioninfo, createdappinfo, HttpMethod.Post, listinginfo))
+            if (UploadScreenShot(neededsubmissioninfo, createdappinfo, HttpMethod.Post, listinginfo, screenshotname))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("Success!\n");
@@ -2246,7 +2259,7 @@ namespace Scarlett_Sideloader
             }
         }
 
-        static bool SetListing(NeededAppInfo createdappinfo, NeededSubmissionInfo neededsubmissioninfo, ListingInfo listinginfo, string name)
+        static bool SetListing(NeededAppInfo createdappinfo, NeededSubmissionInfo neededsubmissioninfo, ListingInfo listinginfo, string name, string description)
         {
             MultipartFormDataContent form = new MultipartFormDataContent(("------WebKitFormBoundary" + RandomString(16)));
             HttpContent tempcontent;
@@ -2294,7 +2307,7 @@ namespace Scarlett_Sideloader
             tempcontent.Headers.Clear();
             tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "ListingModels[0].Listing.Title" };
             form.Add(tempcontent);
-            tempcontent = new StringContent("a");
+            tempcontent = new StringContent(description);
             tempcontent.Headers.Clear();
             tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "ListingModels[0].Listing.Description" };
             form.Add(tempcontent);
@@ -3046,10 +3059,10 @@ namespace Scarlett_Sideloader
             }
         }
 
-        static bool UploadScreenShot(NeededSubmissionInfo neededsubmissioninfo, NeededAppInfo neededappinfo, HttpMethod httpmethod, ListingInfo listinginfo)
+        static bool UploadScreenShot(NeededSubmissionInfo neededsubmissioninfo, NeededAppInfo neededappinfo, HttpMethod httpmethod, ListingInfo listinginfo, string image)
         {
             //file for screenshot is currently hardcoded may change this at somepoint but this is currently not a priority
-            FileStream screenshot = new FileStream("blank.png", FileMode.Open, FileAccess.Read);
+            FileStream screenshot = new FileStream(image, FileMode.Open, FileAccess.Read);
             string partnercenterurl = partneruri + $"en-us/dashboard/listings/FileUploadV2/CreateContext?parentId={neededappinfo.bigId}&parentType=0";
             var request = new HttpRequestMessage(HttpMethod.Post, partnercenterurl);
             ScreenshotInfo screenshotinfo = new ScreenshotInfo() { };

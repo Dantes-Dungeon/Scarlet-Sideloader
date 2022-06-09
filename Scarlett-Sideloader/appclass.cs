@@ -514,9 +514,10 @@ namespace Scarlett_Sideloader
     public class APPVisibility
     {
         //should fiddle with this
+        //update I did fiddle with this
         public string DistributionOption { get; set; } = "Retail";
-        public string DistributionMode { get; set; } = "Public";
-        public string Audience { get; set; } = "PrivateBeta";
+        public string DistributionMode { get; set; }
+        public string Audience { get; set; }
         public string BetaAccounts { get; set; } = "";
         public object PrivateCatalog { get; set; } = null;
         public List<string> GroupIds { get; set; }
