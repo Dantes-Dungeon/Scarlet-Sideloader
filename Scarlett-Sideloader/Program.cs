@@ -39,7 +39,7 @@ namespace Scarlett_Sideloader
                 new Option<string>(aliases: new String[] {"--description", "-D", "-d"}, description: "Description to display on store page.", getDefaultValue: ()=> "a really cool uwp app"),
                 new Option<string>(aliases: new String[] {"--screenshot", "-S", "-s"}, description: "Image to use for screenshot on storepage.", getDefaultValue: ()=> "blank.png"),
                 new Option<bool>(aliases: new String[] {"--app", "-A", "-a"},  description: "Install as an app rather than a game (defaults to game)."),
-                new Option<bool>(aliases: new String[] {"--public", "-P", "-p"}, description: "Push as public instead of defaulting to a private app", getDefaultValue: ()=> false),
+                new Option<bool>(aliases: new String[] {"--public", "-P", "-p"}, description: "Push as public instead of defaulting to a private app"),
                 new Option<string?>(aliases: new String[] {"--emails", "-E", "-e"}, description: "Emails to whitelist, seperated by commas."),
                 new Option<string?>(aliases: new String[] {"--groups", "-G", "-g"}, description: "Group names to whitelist, seperated by commas."),
                 new Option<bool>(aliases: new String[] {"--original", "-O", "-o"}, description: "Keep package file as original."),
@@ -52,6 +52,10 @@ namespace Scarlett_Sideloader
 
         static public void HandleInput(string cookie, FileInfo file, string? name, string screenshotname, string description, bool app, bool publicapp, string? emails, string? groups, bool original, IConsole console)
         {
+            if (description == null)
+                description = "a really cool uwp app";
+            if (screenshotname == null)
+                screenshotname = "blank.png";
             string filename = file.Name;
             string filepath = file.FullName;
             if ((emails == null) && (groups == null) && !publicapp)
