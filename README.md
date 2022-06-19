@@ -4,6 +4,7 @@ A cydia impactor style tool to quickly patch and push apps to retail
 The code is extremely messy. The project is also based purely on reverse engineering using burpsuite, no documentation or proprietary information were used in the creation of this and it shows.
 
 It is reccomended that you manually compiled .NET apps though you can technically utilise the `--original` option.
+To get your asp.net cookies you can use partner token which can be found [here](https://github.com/Dantes-Dungeon/PartnerToken).
 ```
 Usage:
   Scarlett-Sideloader [options] <cookie> <file>
@@ -18,9 +19,9 @@ Options:
   -D, -d, --description <description>    Description to display on store page. [default: a really cool uwp app]
   -S, -s, --screenshot <screenshot>      Image to use for screenshot on storepage. [default: blank.png]
   -A, -a, --app                          Install as an app rather than a game (defaults to game).
-  -P, -p, --private                      Push as private instead of defaulting to a public app [default: False]
+  -P, -p, --public                       Push as public instead of defaulting to a private app [default: False]
   -E, -e, --emails <emails>              Emails to whitelist, seperated by commas.
-  -G, -g, --groups <groups>              Groups to whitelist, seperated by commas.
+  -G, -g, --groups <groups>              Group names to whitelist, seperated by commas.
   -O, -o, --original                     Keep package file as original.
   --version                              Show version information
   -?, -h, --help                         Show help and usage information
