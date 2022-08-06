@@ -31,43 +31,69 @@ namespace Scarlett_Sideloader
 
         static async Task<int> Main(string[] args)
         {
-            var cmd = new RootCommand
-            {
-                new Argument<string>("cookie", "Your asp.net.cookies"),
-                new Argument<FileInfo>("file", "The path to your appx, msix, appxbundle and msixbundle"),
-                new Option<string?>(aliases: new String[] {"--name", "-N", "-n"}, description: "Name to use for the app store page (if left blank it will be randomly generated)."),
-                new Option<string>(aliases: new String[] {"--description", "-D", "-d"}, description: "Description to display on store page.", getDefaultValue: ()=> "a really cool uwp app"),
-                new Option<string>(aliases: new String[] {"--screenshot", "-S", "-s"}, description: "Image to use for screenshot on storepage.", getDefaultValue: ()=> "blank.png"),
-                new Option<bool>(aliases: new String[] {"--app", "-A", "-a"},  description: "Install as an app rather than a game (defaults to game)."),
-                new Option<bool>(aliases: new String[] {"--public", "-P", "-p"}, description: "Push as public instead of defaulting to a private app"),
-                new Option<string?>(aliases: new String[] {"--emails", "-E", "-e"}, description: "Emails to whitelist, seperated by commas."),
-                new Option<string?>(aliases: new String[] {"--groups", "-G", "-g"}, description: "Group names to whitelist, seperated by commas."),
-                new Option<bool>(aliases: new String[] {"--original", "-O", "-o"}, description: "Keep package file as original."),
-            };
+            var cmd = new RootCommand("Scarlett Sideloader - A tool to simplify publishing apps");
+            
+            var cookieArgument = new Argument<string>("cookie", "Your asp.net.cookies");
+            cmd.AddArgument(cookieArgument);
+            var fileArgument = new Argument<FileInfo>("file", "The path to your appx, msix, appxbundle and msixbundle");
+            cmd.AddArgument(fileArgument);
+            var nameOption = new Option<string?>(aliases: new String[] { "--name", "-N", "-n" }, description: "Name to use for the app store page (if left blank it will be randomly generated).");
+            cmd.AddOption(nameOption);
+            var descriptionOption = new Option<string>(aliases: new String[] { "--description", "-D", "-d" }, description: "Description to display on store page.", getDefaultValue: () => "a really cool uwp app");
+            cmd.AddOption(descriptionOption);
+            var screenshotOption = new Option<string>(aliases: new String[] { "--screenshot", "-S", "-s" }, description: "Image to use for screenshot on storepage.", getDefaultValue: () => "blank.png");
+            cmd.AddOption(screenshotOption);
+            var appOption = new Option<bool>(aliases: new String[] { "--app", "-A", "-a" }, description: "Install as an app rather than a game (defaults to game).");
+            cmd.AddOption(appOption);
+            var publicOption = new Option<bool>(aliases: new String[] { "--public", "-P", "-p" }, description: "Push as public instead of defaulting to a private app");
+            cmd.AddOption(publicOption);
+            var emailsOption = new Option<string?>(aliases: new String[] { "--emails", "-E", "-e" }, description: "Emails to whitelist, seperated by commas.");
+            cmd.AddOption(emailsOption);
+            var groupsOption = new Option<string?>(aliases: new String[] { "--groups", "-G", "-g" }, description: "Group names to whitelist, seperated by commas.");
+            cmd.AddOption(groupsOption);
+            var originalOption = new Option<bool>(aliases: new String[] { "--original", "-O", "-o" }, description: "Keep package file as original.");
+            cmd.AddOption(originalOption);
+            var forceOption = new Option<bool>(aliases: new String[] { "--forcename", "-F", "-f" }, description: "Force an exact store name by inserting invisible characters.");
+            cmd.AddOption(forceOption);
 
-            cmd.Handler = CommandHandler.Create<string, FileInfo, string?, string, string, bool, bool, string?, string?, bool, IConsole>(HandleInput);
 
+            cmd.SetHandler(
+                (commandArguments) =>
+                {
+                    HandleInput(commandArguments);
+                }, new CommandArgumentsBinder(cookieArgument, fileArgument, nameOption, descriptionOption, screenshotOption, appOption, publicOption, emailsOption, groupsOption, originalOption, forceOption));
+            
             return await cmd.InvokeAsync(args);
         }
 
-        static public void HandleInput(string cookie, FileInfo file, string? name, string screenshotname, string description, bool app, bool publicapp, string? emails, string? groups, bool original, IConsole console)
+        static public void HandleInput(CommandArguments commandArguments)
         {
-            if (description == null)
-                description = "a really cool uwp app";
-            if (screenshotname == null)
-                screenshotname = "blank.png";
-            string filename = file.Name;
-            string filepath = file.FullName;
-            if ((emails == null) && (groups == null) && !publicapp)
+            if (commandArguments.description == null)
+                commandArguments.description = "a really cool uwp app";
+            if (commandArguments.screenshotname == null)
+                commandArguments.screenshotname = "blank.png";
+            string filename = commandArguments.file.Name;
+            string filepath = commandArguments.file.FullName;
+            if ((commandArguments.emails == null) && (commandArguments.groups == null) && !commandArguments.publicapp)
             {
                 Console.ForegroundColor = ConsoleColor.Blue;
                 Console.WriteLine("No emails or group provided, defaulting to test@test.com");
-                emails = "test@test.com";
+                commandArguments.emails = "test@test.com";
             }
             //set aspnet cookie and create http client
             CookieContainer cookieContainer = new CookieContainer();
-            cookieContainer.Add(partneruri, new Cookie(".AspNet.Cookies", cookie));
-            HttpClientHandler handler = new HttpClientHandler() { CookieContainer = cookieContainer };
+            cookieContainer.Add(partneruri, new Cookie(".AspNet.Cookies", commandArguments.cookie));
+            HttpClientHandler handler = new HttpClientHandler() {
+                CookieContainer = cookieContainer,
+                //Proxy = new WebProxy("http://localhost:8080", false),
+                //UseProxy = true
+            };
+            //handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+            //handler.ServerCertificateCustomValidationCallback =
+            /*    (httpRequestMessage, cert, cetChain, policyErrors) =>
+                {
+                    return true;
+                };*/
             client = new HttpClient(handler);
 
             //pull needed publisher info
@@ -93,13 +119,13 @@ namespace Scarlett_Sideloader
             String[] grouplist;
             List<NeededGroupInfo> Neededgroups = new List<NeededGroupInfo>();
 
-            if (!publicapp)
+            if (!commandArguments.publicapp)
             {
                 //strip whitespace out of groups and emails, not a function due to it only being done twice
-                if (emails != null)
+                if (commandArguments.emails != null)
                 {
-                    emails = new string(emails.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
-                    emaillist = emails.Split(",");
+                    commandArguments.emails = new string(commandArguments.emails.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
+                    emaillist = commandArguments.emails.Split(",");
                     string groupname = RandomString(6);
                     CreateGroupInfo newgroup = new CreateGroupInfo()
                     {
@@ -122,10 +148,10 @@ namespace Scarlett_Sideloader
                     }
                     Neededgroups.Add(createdgroup);
                 }
-                if (groups != null)
+                if (commandArguments.groups != null)
                 {
-                    groups = new string(groups.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
-                    grouplist = groups.Split(",");
+                    commandArguments.groups = new string(commandArguments.groups.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
+                    grouplist = commandArguments.groups.Split(",");
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write("Pulling group info: ");
                     List<NeededGroupInfo> groupsjson = GetAllGroups();
@@ -151,18 +177,13 @@ namespace Scarlett_Sideloader
                 }
             }
             string appname;
-            if (name != null)
-            {
-                appname = name;
-            } else {
-                appname = RandomString(16);
-            }
+            appname = RandomString(16);
             AppInfo createappinfo = new AppInfo() 
             { 
                 Name = appname, 
                 features = new AppFeatures() 
                 { 
-                    game = !app
+                    game = !commandArguments.app
                 } 
             };
 
@@ -178,6 +199,89 @@ namespace Scarlett_Sideloader
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("Success!\n");
             }
+
+            if (commandArguments.name != null)
+            {
+                
+                bool succeeded = false;
+                while (!succeeded)
+                {
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write($"Checking availability of {commandArguments.name}: ");
+                    bool? available = CheckAvailability(commandArguments.name);
+                    if (available == null)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Failed to check availability of app name");
+                        return;
+                    }
+                    else if (available == true)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("Success!\n");
+                        succeeded = true;
+                    }
+                    else
+                    {
+                        if (commandArguments.force)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.Write($"Name was not available, adjusting and trying again\n");
+                            commandArguments.name = RandomInvisibleString(3) + commandArguments.name + RandomInvisibleString(3);
+                        }
+                        else
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("Name is not available");
+                            return;
+                        }
+                    }
+                }
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Reserving app name ({commandArguments.name}): ");
+                if (ReserveAppName(createdappinfo, commandArguments.name))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                else 
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to reserve new App Name");
+                    return;
+                }
+
+                /*Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Switching app name to {commandArguments.name}: ");
+                if (SwitchAppName(createdappinfo, commandArguments.name))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Failed to switch App Name");
+                    return;
+                }*/
+
+                string currentname = appname;
+                appname = commandArguments.name;
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"Deleting temporary app name: ");
+                if (DeleteAppName(createdappinfo, currentname))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success!\n");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Failed to delete Temporary App Name\n");
+                }
+            }
+
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Creating submission for {appname}: ");
             if (CreateSubmission(createdappinfo) == null)
@@ -213,6 +317,11 @@ namespace Scarlett_Sideloader
                 return;
             }
 
+            if (commandArguments.name != null)
+            {
+                appname = commandArguments.name;
+            }
+
             NeededSubmissionInfo neededsubmissioninfo = returnedsubmissions[0];
 
 
@@ -223,9 +332,9 @@ namespace Scarlett_Sideloader
                 PublisherId = publisherinfo.sellerId,
                 Visibility = new APPVisibility()
                 {
-                    GroupIds = publicapp ? new List<string>(): groupids,
-                    DistributionMode = publicapp ? "Hidden" : "Public",
-                    Audience = publicapp ? "Public" : "PrivateBeta"
+                    GroupIds = commandArguments.publicapp ? new List<string>(): groupids,
+                    DistributionMode = commandArguments.publicapp ? "Hidden" : "Public",
+                    Audience = commandArguments.publicapp ? "Public" : "PrivateBeta"
                 }
             };
 
@@ -286,7 +395,7 @@ namespace Scarlett_Sideloader
                 return;
             }
 
-            if (SetProperties(createdappinfo, neededsubmissioninfo, requestverificationtoken, app))
+            if (SetProperties(createdappinfo, neededsubmissioninfo, requestverificationtoken, commandArguments.app))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("Success!\n");
@@ -296,7 +405,7 @@ namespace Scarlett_Sideloader
                 return;
             }
 
-            if (!app)
+            if (!commandArguments.app)
             {
                 //get xbl auth token
                 Console.ForegroundColor = ConsoleColor.White;
@@ -412,12 +521,12 @@ namespace Scarlett_Sideloader
                 }
             }
             //patch the package
-            if (!original) 
+            if (!commandArguments.original) 
             {
                 bool uploadfile = false;
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Starting to patch {filename}: ");
-                if ((file.Extension == ".appxbundle") || (file.Extension == ".msixbundle"))
+                if ((commandArguments.file.Extension == ".appxbundle") || (commandArguments.file.Extension == ".msixbundle"))
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write("Detected Bundle Package\n");
@@ -428,7 +537,7 @@ namespace Scarlett_Sideloader
                     {
                        Directory.Delete(bundlepath, true);
                     }
-                    ZipFile.ExtractToDirectory(file.FullName, bundlepath, true);
+                    ZipFile.ExtractToDirectory(commandArguments.file.FullName, bundlepath, true);
                     XDocument AppxBundleManifest = XDocument.Load(Path.Join(bundlepath, "AppxMetadata\\AppxBundleManifest.xml"));
                     XNamespace ns = AppxBundleManifest.Root.GetDefaultNamespace();
                     XElement packages = AppxBundleManifest.Root.Element(XName.Get("Packages", ns.NamespaceName));
@@ -453,13 +562,13 @@ namespace Scarlett_Sideloader
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write("Success!\n");
                 }
-                else if ((file.Extension == ".appxupload") || (file.Extension == ".msixupload"))
+                else if ((commandArguments.file.Extension == ".appxupload") || (commandArguments.file.Extension == ".msixupload"))
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write("Detected upload file (please use the --original flag in future)\n");
                     uploadfile = true;
                 }
-                else if ((file.Extension == ".appx") || (file.Extension == ".msix"))
+                else if ((commandArguments.file.Extension == ".appx") || (commandArguments.file.Extension == ".msix"))
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write("Detected package file\n");
@@ -778,7 +887,7 @@ namespace Scarlett_Sideloader
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting languages for {appname}: ");
             
-            if (SetListing(createdappinfo, neededsubmissioninfo, listinginfo, appname, description))
+            if (SetListing(createdappinfo, neededsubmissioninfo, listinginfo, appname, commandArguments.description))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("Success!\n");
@@ -793,7 +902,7 @@ namespace Scarlett_Sideloader
             //upload screenshot
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Adding screenshot for {appname}: ");
-            if (UploadScreenShot(neededsubmissioninfo, createdappinfo, HttpMethod.Post, listinginfo, screenshotname))
+            if (UploadScreenShot(neededsubmissioninfo, createdappinfo, HttpMethod.Post, listinginfo, commandArguments.screenshotname))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("Success!\n");
@@ -838,6 +947,12 @@ namespace Scarlett_Sideloader
               .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
+        public static string RandomInvisibleString(int length)
+        {
+            const string chars = "​‍؜​⁪⁫⁬";
+            return new string(Enumerable.Repeat(chars, length)
+              .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
 
         static string GetRequestToken(NeededAppInfo createdappinfo, NeededSubmissionInfo neededsubmissioninfo)
         {
@@ -2892,6 +3007,27 @@ namespace Scarlett_Sideloader
             }
         }
 
+        static bool? CheckAvailability(string name)
+        {
+            var content = new StringContent($"\"{name}\"", System.Text.Encoding.UTF8, "application/json");
+            var response = client.PostAsync((partneruri.ToString() + "/en-us/dashboard/product/api/names/checkAvailability?scope=application&productType=Application"), content);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                string responseresult = response.Result.Content.ReadAsStringAsync().Result;
+                bool available;
+                if (bool.TryParse(responseresult, out available))
+                    return available;
+                else
+                    return null;
+
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         static NeededAppInfo CreateApp(AppInfo appinfo)
         {
             var stringPayload = JsonConvert.SerializeObject(appinfo);
@@ -2906,6 +3042,50 @@ namespace Scarlett_Sideloader
             else
             {
                 return null;
+            }
+        }
+
+        static bool ReserveAppName(NeededAppInfo appinfo, string name)
+        {
+            var content = new StringContent($"\"{name}\"", System.Text.Encoding.UTF8, "application/json");
+            var response = client.PostAsync((partneruri.ToString() + $"/en-us/dashboard/product/api/names/{appinfo.bigId}"), content);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        static bool SwitchAppName(NeededAppInfo appinfo, string name)
+        {
+            var content = new StringContent($"\"{name}\"", System.Text.Encoding.UTF8, "application/json");
+            var response = client.PostAsync((partneruri.ToString() + $"/en-us/dashboard/product/api/names/{appinfo.bigId}/updateAlias"), content);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        static bool DeleteAppName(NeededAppInfo appinfo, string name)
+        {
+            var response = client.DeleteAsync((partneruri.ToString() + $"/en-us/dashboard/product/api/names/{appinfo.bigId}?name={name}"));
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -2948,6 +3128,23 @@ namespace Scarlett_Sideloader
             var stringPayload = JsonConvert.SerializeObject(storeinfo);
             var content = new StringContent(stringPayload, System.Text.Encoding.UTF8, "application/json");
             var response = client.PostAsync((partneruri.ToString() + $"/en-us/dashboard/availability/api/product/{storeinfo.BigId}/submissions/{neededsubmissioninfo.id}"), content);
+            response.Wait();
+            if (response.Result.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        static bool ReserveName(StoreInfo storeinfo, NeededSubmissionInfo neededsubmissioninfo)
+        {
+            var stringPayload = JsonConvert.SerializeObject(storeinfo);
+            var content = new StringContent(stringPayload, System.Text.Encoding.UTF8, "application/json");
+            var response = client.PostAsync((partneruri.ToString() + $"/en-us/dashboard/product/api/names/{neededsubmissioninfo.id}"), content);
             response.Wait();
             if (response.Result.IsSuccessStatusCode)
             {

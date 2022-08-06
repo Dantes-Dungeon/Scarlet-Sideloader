@@ -3,9 +3,74 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
+using System.CommandLine.Binding;
+using System.CommandLine;
 
 namespace Scarlett_Sideloader
 {
+
+    public class CommandArguments
+    {
+        public string cookie { get; set; }
+        public FileInfo file { get; set; }
+        public string? name { get; set; }
+        public string screenshotname { get; set; }
+        public string description { get; set; }
+        public bool app { get; set; }
+        public bool publicapp { get; set; }
+        public string? emails { get; set; }
+        public string? groups { get; set; }
+        public bool original { get; set; }
+        public bool force { get; set; }
+    }
+
+    public class CommandArgumentsBinder : BinderBase<CommandArguments>
+    {
+        private readonly Argument<string> _cookieArgument;
+        private readonly Argument<FileInfo> _fileArgument;
+        private readonly Option<string?> _nameOption;
+        private readonly Option<string> _descriptionOption;
+        private readonly Option<string> _screenshotOption;
+        private readonly Option<bool> _appOption;
+        private readonly Option<bool> _publicOption;
+        private readonly Option<string?> _emailsOption;
+        private readonly Option<string?> _groupsOption;
+        private readonly Option<bool> _originalOption;
+        private readonly Option<bool> _forceOption;
+
+        public CommandArgumentsBinder(Argument<string> cookieArgument, Argument<FileInfo> fileArgument, Option<string> nameOption, Option<string> descriptionOption, Option<string> screenshotOption, Option<bool> appOption, Option<bool> publicOption, Option<string> emailsOption, Option<string> groupsOption, Option<bool> originalOption, Option<bool> forceOption)
+        {
+            _cookieArgument = cookieArgument;
+            _fileArgument = fileArgument;
+            _nameOption = nameOption;
+            _descriptionOption = descriptionOption;
+            _screenshotOption = screenshotOption;
+            _appOption = appOption;
+            _publicOption = publicOption;
+            _emailsOption = emailsOption;
+            _groupsOption = groupsOption;
+            _originalOption = originalOption;
+            _forceOption = forceOption;
+        }
+
+        protected override CommandArguments GetBoundValue(BindingContext bindingContext) =>
+            new CommandArguments
+            {
+                cookie = bindingContext.ParseResult.GetValueForArgument(_cookieArgument),
+                file = bindingContext.ParseResult.GetValueForArgument(_fileArgument),
+                name = bindingContext.ParseResult.GetValueForOption(_nameOption),
+                description = bindingContext.ParseResult.GetValueForOption(_descriptionOption),
+                screenshotname = bindingContext.ParseResult.GetValueForOption(_screenshotOption),
+                app = bindingContext.ParseResult.GetValueForOption(_appOption),
+                publicapp = bindingContext.ParseResult.GetValueForOption(_publicOption),
+                emails = bindingContext.ParseResult.GetValueForOption(_emailsOption),
+                groups = bindingContext.ParseResult.GetValueForOption(_groupsOption),
+                original = bindingContext.ParseResult.GetValueForOption(_originalOption),
+                force = bindingContext.ParseResult.GetValueForOption(_forceOption)
+            };
+    }
+
     public class SubmitInfo 
     {
         public bool isAutoPromotionEnabled { get; set; } = false;
