@@ -3483,7 +3483,10 @@ namespace Scarlett_Sideloader
         //reused code from appx packer, its s*** I know but I don't have the energy to write soemthing better
         static bool MakeMsix(string inputfolder, string outputpath)
         {
-            string makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe");
+            string makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "bin", "makeMsix");
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe");
+
             string args = $"pack -d \"{inputfolder}\" -p \"{outputpath}\"";
     
             if (File.Exists(outputpath))
