@@ -586,7 +586,7 @@ namespace Scarlett_Sideloader
                     //patch appxmanifest
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Patching appxmanifest for {filename}: ");
-                    string packagepath = Path.Join(Path.GetTempPath(), "package");
+                    string packagepath = Path.Join(Path.GetTempPath(), "package", $"{System.IO.Path.GetFileNameWithoutExtension(filename)}");
                     //clear out package path too
                     if (Directory.Exists(packagepath))
                     {
@@ -611,10 +611,16 @@ namespace Scarlett_Sideloader
                     Console.Write("Success!\n");
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Generating patched {filename}: ");
-                    if (File.Exists(Path.Join(Directory.GetCurrentDirectory(), "Appxpacker", "MakeAppx.exe")))
+                    if (File.Exists(Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe")))
                     {
                         string appxpath = Path.Join(Path.GetTempPath(), $"Patched-{filename}");
-                        if (MakeAppx(packagepath, appxpath))
+                        bool msixcreation = MakeMsix(packagepath, appxpath);
+                        //clear out package path too
+                        if (Directory.Exists(packagepath))
+                        {
+                            Directory.Delete(packagepath, true);
+                        }
+                        if (msixcreation)
                         {
                             filepath = appxpath;
                             filename = $"Patched-{filename}";
@@ -627,7 +633,7 @@ namespace Scarlett_Sideloader
                         }
                     } else {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("MakeAppx.exe was not found\n");
+                        Console.Write("MakeMsix.exe was not found\n");
                         return;
                     }
                     Console.ForegroundColor = ConsoleColor.White;
@@ -3469,16 +3475,16 @@ namespace Scarlett_Sideloader
                 text = process2.StandardOutput.ReadLine();
                 if (text.Length > 0)
                 {
-                    result = text;
+                    result += text;
                 }
             }
             return result;
         }
         //reused code from appx packer, its s*** I know but I don't have the energy to write soemthing better
-        static bool MakeAppx(string inputfolder, string outputpath)
+        static bool MakeMsix(string inputfolder, string outputpath)
         {
-            string makeappxpath = Path.Join(Directory.GetCurrentDirectory(), "Appxpacker", "MakeAppx.exe");
-            string args = $"pack -d \"{inputfolder}\" -p \"{outputpath}\" -l";
+            string makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe");
+            string args = $"pack -d \"{inputfolder}\" -p \"{outputpath}\"";
     
             if (File.Exists(outputpath))
             {
@@ -3488,8 +3494,8 @@ namespace Scarlett_Sideloader
             {
                 Directory.Delete(outputpath, true);
             }
-
-            if (RunProcess(makeappxpath, args).ToLower().Contains("succeeded"))
+            string output = RunProcess(makemsixpath, args).ToLower();
+            if (!output.Contains("error:"))
             {
                 return true;
             }
