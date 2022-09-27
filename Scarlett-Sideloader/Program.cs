@@ -611,7 +611,7 @@ namespace Scarlett_Sideloader
                     Console.Write("Success!\n");
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Generating patched {filename}: ");
-                    if (File.Exists(Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe")) || File.Exists(Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "makemsix")))
+                    if (File.Exists(Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe")) || File.Exists(Path.Join(Directory.GetCurrentDirectory(), "makemsix", "makemsix")))
                     {
                         string appxpath = Path.Join(Path.GetTempPath(), $"Patched-{filename}");
                         bool msixcreation = MakeMsix(packagepath, appxpath);
@@ -3483,7 +3483,7 @@ namespace Scarlett_Sideloader
         //reused code from appx packer, its s*** I know but I don't have the energy to write soemthing better
         static bool MakeMsix(string inputfolder, string outputpath)
         {
-            string makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "makemsix");
+            string makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "makemsix", "makemsix");
             if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe");
 
