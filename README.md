@@ -10,21 +10,25 @@ Usage:
   Scarlett-Sideloader [options] <cookie> <file>
 
 Arguments:
-  <cookie>    Your asp.net.cookies
-  <file>      The path to your appx, msix, appxbundle and msixbundle
+  <cookie>  Your asp.net.cookies
+  <file>    The path to your appx, msix, appxbundle and msixbundle
 
 Options:
-  -N, -n, --name <name>                  Name to use for the app store page (if left blank it will be randomly
-                                         generated).
-  -D, -d, --description <description>    Description to display on store page. [default: a really cool uwp app]
-  -S, -s, --screenshot <screenshot>      Image to use for screenshot on storepage. [default: blank.png]
-  -A, -a, --app                          Install as an app rather than a game (defaults to game).
-  -P, -p, --public                       Push as public instead of defaulting to a private app [default: False]
-  -E, -e, --emails <emails>              Emails to whitelist, seperated by commas.
-  -G, -g, --groups <groups>              Group names to whitelist, seperated by commas.
-  -O, -o, --original                     Keep package file as original.
-  --version                              Show version information
-  -?, -h, --help                         Show help and usage information
+  -N, -n, --name <name>                    Name to use for the app store page (if left blank it will 
+be randomly generated).
+  -D, -d, --description <description>      Description to display on store page. [default: a really c
+ool uwp app]
+  -S, -s, --screenshot <screenshot>        Image to use for screenshot on storepage. [default: blank.
+png]
+  -A, -a, --app                            Install as an app rather than a game (defaults to game).
+  -P, -p, --public                         Push as public instead of defaulting to a private app
+  -E, -e, --emails <emails>                Emails to whitelist, seperated by commas.
+  -G, -g, --groups <groups>                Group names to whitelist, seperated by commas.
+  -O, -o, --original                       Keep package file as original.
+  -F, -f, --forcename                      Force an exact store name by inserting invisible characters.
+  -R, -r, --retryattempts <retryattempts>  Number of times to try uploading to the store before failing [default: 3]
+  --version                                Show version information
+  -?, -h, --help                           Show help and usage information
 ```
 ## Example
 `dotnet Scarlett-Sideloader.dll -G testgroup -E test@domain.com <cookie (.AspNet.Cookies)> test.appxbundle`
