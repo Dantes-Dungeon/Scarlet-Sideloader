@@ -14,12 +14,9 @@ Arguments:
   <file>    The path to your appx, msix, appxbundle and msixbundle
 
 Options:
-  -N, -n, --name <name>                    Name to use for the app store page (if left blank it will 
-be randomly generated).
-  -D, -d, --description <description>      Description to display on store page. [default: a really c
-ool uwp app]
-  -S, -s, --screenshot <screenshot>        Image to use for screenshot on storepage. [default: blank.
-png]
+  -N, -n, --name <name>                    Name to use for the app store page (if left blank it will be randomly generated).
+  -D, -d, --description <description>      Description to display on store page. [default: a really cool uwp app]
+  -S, -s, --screenshot <screenshot>        Image to use for screenshot on storepage. [default: blank.png]
   -A, -a, --app                            Install as an app rather than a game (defaults to game).
   -P, -p, --public                         Push as public instead of defaulting to a private app
   -E, -e, --emails <emails>                Emails to whitelist, seperated by commas.
