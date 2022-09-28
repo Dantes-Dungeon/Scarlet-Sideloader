@@ -23,6 +23,8 @@ namespace Scarlett_Sideloader
         public string? groups { get; set; }
         public bool original { get; set; }
         public bool force { get; set; }
+
+        public int attempts { get ;set; }
     }
 
     public class CommandArgumentsBinder : BinderBase<CommandArguments>
@@ -38,8 +40,9 @@ namespace Scarlett_Sideloader
         private readonly Option<string?> _groupsOption;
         private readonly Option<bool> _originalOption;
         private readonly Option<bool> _forceOption;
+        private readonly Option<int> _retryOption;
 
-        public CommandArgumentsBinder(Argument<string> cookieArgument, Argument<FileInfo> fileArgument, Option<string> nameOption, Option<string> descriptionOption, Option<string> screenshotOption, Option<bool> appOption, Option<bool> publicOption, Option<string> emailsOption, Option<string> groupsOption, Option<bool> originalOption, Option<bool> forceOption)
+        public CommandArgumentsBinder(Argument<string> cookieArgument, Argument<FileInfo> fileArgument, Option<string> nameOption, Option<string> descriptionOption, Option<string> screenshotOption, Option<bool> appOption, Option<bool> publicOption, Option<string> emailsOption, Option<string> groupsOption, Option<bool> originalOption, Option<bool> forceOption, Option<int> retryOption)
         {
             _cookieArgument = cookieArgument;
             _fileArgument = fileArgument;
@@ -52,6 +55,7 @@ namespace Scarlett_Sideloader
             _groupsOption = groupsOption;
             _originalOption = originalOption;
             _forceOption = forceOption;
+            _retryOption = retryOption;
         }
 
         protected override CommandArguments GetBoundValue(BindingContext bindingContext) =>
@@ -67,7 +71,8 @@ namespace Scarlett_Sideloader
                 emails = bindingContext.ParseResult.GetValueForOption(_emailsOption),
                 groups = bindingContext.ParseResult.GetValueForOption(_groupsOption),
                 original = bindingContext.ParseResult.GetValueForOption(_originalOption),
-                force = bindingContext.ParseResult.GetValueForOption(_forceOption)
+                force = bindingContext.ParseResult.GetValueForOption(_forceOption),
+                attempts = bindingContext.ParseResult.GetValueForOption(_retryOption)
             };
     }
 
