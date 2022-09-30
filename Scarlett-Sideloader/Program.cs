@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
-using System.IO.Compression;        
+using System.IO.Compression;
 using System.Xml.Linq;
 using System.Web;
 using System.Diagnostics;
@@ -70,14 +70,14 @@ namespace Scarlett_Sideloader
         static public void HandleInput(CommandArguments commandArguments)
         {
             bool success;
-            do {
+            do
+            {
                 success = (SideloaderMain(commandArguments) != null);
                 commandArguments.attempts--;
             } while (commandArguments.attempts > 0 && !success);
             if (!success)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Reached max number of retry attempts");
+                WriteLine("Reached max number of retry attempts", ConsoleColor.Red);
             }
         }
 
@@ -103,6 +103,13 @@ namespace Scarlett_Sideloader
             return default(T);
         }
 
+        public static void WriteLine(string text, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(text);
+            Console.ResetColor();
+        }
+
         static public string SideloaderMain(CommandArguments commandArguments)
         {
             if (commandArguments.description == null)
@@ -113,41 +120,37 @@ namespace Scarlett_Sideloader
             string filepath = commandArguments.file.FullName;
             if ((commandArguments.emails == null) && (commandArguments.groups == null) && !commandArguments.publicapp)
             {
-                Console.ForegroundColor = ConsoleColor.Blue;
-                Console.WriteLine("No emails or group provided, defaulting to test@test.com");
+                WriteLine("No emails or group provided, defaulting to test@test.com", ConsoleColor.Blue);
                 commandArguments.emails = "test@test.com";
             }
             //set aspnet cookie and create http client
             CookieContainer cookieContainer = new CookieContainer();
             cookieContainer.Add(partneruri, new Cookie(".AspNet.Cookies", commandArguments.cookie));
-            HttpClientHandler handler = new HttpClientHandler() {
+            HttpClientHandler handler = new HttpClientHandler()
+            {
                 CookieContainer = cookieContainer,
-                //Proxy = new WebProxy("http://localhost:8080", false),
-                //UseProxy = true
+                Proxy = new WebProxy("http://localhost:8080", false),
+                UseProxy = true
             };
-            //handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-            //handler.ServerCertificateCustomValidationCallback =
-            /*    (httpRequestMessage, cert, cetChain, policyErrors) =>
+            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+            handler.ServerCertificateCustomValidationCallback =
+                (httpRequestMessage, cert, cetChain, policyErrors) =>
                 {
                     return true;
-                };*/
+                };
             client = new HttpClient(handler);
 
             //pull needed publisher info
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write("Pulling publisher info: ");
             PublisherInfo publisherinfo = retryFunction<PublisherInfo>(() => GetPublisherInfo(), 3);
             if (publisherinfo == null)
             {
-
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to pull publisher info, cookie is likely invalid");
+                WriteLine("Failed to pull publisher info, cookie is likely invalid", ConsoleColor.Red);
                 return null;
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
 
             //get all needed group info
@@ -169,19 +172,16 @@ namespace Scarlett_Sideloader
                         name = groupname,
                         members = emaillist
                     };
-                    Console.ForegroundColor = ConsoleColor.White;
                     Console.Write("Creating new group from emails: ");
-                    NeededGroupInfo createdgroup = retryFunction<NeededGroupInfo>(()=>CreateGroup(newgroup), 3);
+                    NeededGroupInfo createdgroup = retryFunction<NeededGroupInfo>(() => CreateGroup(newgroup), 3);
                     if (createdgroup == null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Failed to create group, cookie is likely invalid");
+                        WriteLine("Failed to create group, cookie is likely invalid", ConsoleColor.Red);
                         return null;
                     }
                     else
                     {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.Write("Success!\n");
+                        WriteLine("Success!", ConsoleColor.Green);
                     }
                     Neededgroups.Add(createdgroup);
                 }
@@ -189,20 +189,17 @@ namespace Scarlett_Sideloader
                 {
                     commandArguments.groups = new string(commandArguments.groups.ToCharArray().Where(c => !Char.IsWhiteSpace(c)).ToArray());
                     grouplist = commandArguments.groups.Split(",");
-                    Console.ForegroundColor = ConsoleColor.White;
                     Console.Write("Pulling group info: ");
-                    List<NeededGroupInfo> groupsjson = retryFunction<List<NeededGroupInfo>>(() => GetAllGroups() ,3);
+                    List<NeededGroupInfo> groupsjson = retryFunction<List<NeededGroupInfo>>(() => GetAllGroups(), 3);
                     if (groupsjson == default(List<NeededGroupInfo>))
                     {
 
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Failed to pull group info, cookie is likely invalid");
+                        WriteLine("Failed to pull group info, cookie is likely invalid", ConsoleColor.Red);
                         return null;
                     }
                     else
                     {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.Write("Success!\n");
+                        WriteLine("Success!", ConsoleColor.Green);
                     }
                     foreach (NeededGroupInfo groupInfo in groupsjson)
                     {
@@ -215,76 +212,67 @@ namespace Scarlett_Sideloader
             }
             string appname;
             appname = RandomString(16);
-            AppInfo createappinfo = new AppInfo() 
-            { 
-                Name = appname, 
-                features = new AppFeatures() 
-                { 
+            AppInfo createappinfo = new AppInfo()
+            {
+                Name = appname,
+                features = new AppFeatures()
+                {
                     game = !commandArguments.app
-                } 
+                }
             };
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Creating APP with name {appname}: ");
-            NeededAppInfo createdappinfo = retryFunction<NeededAppInfo>(() => CreateApp(createappinfo),3);
+            NeededAppInfo createdappinfo = retryFunction<NeededAppInfo>(() => CreateApp(createappinfo), 3);
             if (createdappinfo == null)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to create app, name is likely already taken");
+                WriteLine("Failed to create app, name is likely already taken", ConsoleColor.Red);
                 return null;
-            } else {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+            }
+            else
+            {
+                WriteLine("Success!", ConsoleColor.Green);
             }
 
             if (commandArguments.name != null)
             {
-                
+
                 bool succeeded = false;
                 while (!succeeded)
                 {
-                    Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Checking availability of {commandArguments.name}: ");
                     bool? available = retryFunction<bool?>(() => CheckAvailability(commandArguments.name), 3);
                     if (available == default(bool?))
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Failed to check availability of app name");
+                        WriteLine("Failed to check availability of app name", ConsoleColor.Red);
                         return null;
                     }
                     else if (available == true)
                     {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.Write("Success!\n");
+                        WriteLine("Success!", ConsoleColor.Green);
                         succeeded = true;
                     }
                     else
                     {
                         if (commandArguments.force)
                         {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.Write($"Name was not available, adjusting and trying again\n");
+                            WriteLine($"Name was not available, adjusting and trying again: ", ConsoleColor.Yellow);
                             commandArguments.name = RandomInvisibleString(3) + commandArguments.name + RandomInvisibleString(3);
                         }
                         else
                         {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("Name is not available");
+                            WriteLine("Name is not available", ConsoleColor.Red);
                             return null;
                         }
                     }
                 }
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Reserving app name ({commandArguments.name}): ");
                 if (retryFunction(() => ReserveAppName(createdappinfo, commandArguments.name), 3))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
-                else 
+                else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to reserve new App Name");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
 
@@ -292,8 +280,7 @@ namespace Scarlett_Sideloader
                 Console.Write($"Switching app name to {commandArguments.name}: ");
                 if (SwitchAppName(createdappinfo, commandArguments.name))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 else
                 {
@@ -305,32 +292,26 @@ namespace Scarlett_Sideloader
                 string currentname = appname;
                 appname = commandArguments.name;
 
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Deleting temporary app name: ");
                 if (retryFunction(() => DeleteAppName(createdappinfo, currentname), 3))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Failed to delete Temporary App Name\n");
+                    WriteLine("Failed to delete Temporary App Name", ConsoleColor.Yellow);
                 }
             }
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Creating submission for {appname}: ");
             if (!retryFunction(() => CreateSubmission(createdappinfo), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to create submission for app, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
 
             List<string> groupids = new List<string>();
@@ -339,18 +320,15 @@ namespace Scarlett_Sideloader
                 groupids.Add(groupinfo.id);
             }
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Getting submission info for {appname}: ");
             List<NeededSubmissionInfo> returnedsubmissions = GetSubmissionInfo(createdappinfo);
             if (returnedsubmissions != null)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to get submission info, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
@@ -369,139 +347,124 @@ namespace Scarlett_Sideloader
                 PublisherId = publisherinfo.sellerId,
                 Visibility = new APPVisibility()
                 {
-                    GroupIds = commandArguments.publicapp ? new List<string>(): groupids,
+                    GroupIds = commandArguments.publicapp ? new List<string>() : groupids,
                     DistributionMode = commandArguments.publicapp ? "Hidden" : "Public",
                     Audience = commandArguments.publicapp ? "Public" : "PrivateBeta"
                 }
             };
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting Pricing and Availibility for {appname}: ");
             if (retryFunction(() => SetAvailibility(storeinfo, neededsubmissioninfo), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set pricing and availibility for app, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Getting identity info for {appname}: ");
 
             Identity identity = GetIdentityInfo(createdappinfo);
             if (identity != null)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to get identity info for app, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             //create age rating application
             AgeRatingApplication ageratingapplication = new AgeRatingApplication() { product = new Product() { alias = appname } };
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting Age Ratings for {appname}: ");
             if (retryFunction(() => SetAgeRatings(createdappinfo, neededsubmissioninfo, ageratingapplication), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set age ratings for app, cookie is likely invalid");
-            }
-
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write($"Setting properties for {appname}: ");
-            //set properties
-            //get needed verification token
-            string requestverificationtoken = GetRequestToken(createdappinfo, neededsubmissioninfo);
-            if (requestverificationtoken == null) 
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to get requestverificationtoken");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
+
+            //get needed verification token
+            Console.Write("Getting request verifictation token: ");
+            string requestverificationtoken = GetRequestToken(createdappinfo, neededsubmissioninfo);
+            if (requestverificationtoken == null)
+            {
+                WriteLine("Failed", ConsoleColor.Red);
+                return null;
+            }
+            WriteLine("Success!", ConsoleColor.Green);
+            
+            //set properties
+            Console.Write($"Setting properties for {appname}: ");
             if (retryFunction(() => SetProperties(createdappinfo, neededsubmissioninfo, requestverificationtoken, commandArguments.app), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
-            } else {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set properties");
+                WriteLine("Success!", ConsoleColor.Green);
+            }
+            else
+            {
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             if (!commandArguments.app)
             {
                 //get xbl auth token
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Getting Xbox Live Auth Token for {appname}: ");
                 ReturnedAuthInfo returnedauthinfo = GetXBLAuthToken(createdappinfo, "CERT CERT.DEBUG RETAIL ALL HIDDEN HISTORY");
                 if (returnedauthinfo == null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to get Xbox Live Auth Token");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                        Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
 
                 //get xblids
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Getting Xbox Live IDs for {appname}: ");
                 GetXBLids(createdappinfo, HttpMethod.Options, null);
                 XBLids xblids = GetXBLids(createdappinfo, HttpMethod.Get, returnedauthinfo);
                 if (xblids == null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to get Xbox Live IDs");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 //enable xbl for app
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Enabling Xbox Live for {appname}: ");
                 EnableXBL(xblids, HttpMethod.Options, null, null);
                 if (retryFunction(() => EnableXBL(xblids, HttpMethod.Post, returnedauthinfo, appname), 3))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                } else {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to enable Xbox Live");
+                    WriteLine("Success!", ConsoleColor.Green);
+                }
+                else
+                {
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
 
                 //get acc info
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Getting acc info: ");
                 GetAccountInfo(xblids, HttpMethod.Options, null);
                 XBLaccInfo xblaccinfo = GetAccountInfo(xblids, HttpMethod.Get, returnedauthinfo);
                 if (xblaccinfo != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                } else {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to get acc info");
+                    WriteLine("Success!", ConsoleColor.Green);
+                }
+                else
+                {
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
 
@@ -509,70 +472,59 @@ namespace Scarlett_Sideloader
                 ReturnedAuthInfo returnedsandboxauthinfo = GetXBLAuthToken(createdappinfo, $"{xblaccinfo.OpenTierSandboxId} RETAIL");
 
                 //send validation request
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Sending validation request: ");
                 ValidateSandbox(xblids, HttpMethod.Options, null, xblaccinfo);
                 string sourceversion = ValidateSandbox(xblids, HttpMethod.Post, returnedsandboxauthinfo, xblaccinfo);
                 if (sourceversion != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to send validation request");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
 
                 //send copy request
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Copying {xblaccinfo.OpenTierSandboxId} SANDBOX to RETAIL: ");
                 CopySandbox(xblids, HttpMethod.Options, null, xblaccinfo);
                 if (retryFunction(() => CopySandbox(xblids, HttpMethod.Post, returnedsandboxauthinfo, xblaccinfo), 3))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to copy");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
 
                 //send publish request
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Publishing Sandbox: ");
                 PublishSandbox(xblids, HttpMethod.Options, null, xblaccinfo, sourceversion);
                 if (retryFunction(() => PublishSandbox(xblids, HttpMethod.Post, returnedsandboxauthinfo, xblaccinfo, sourceversion), 3))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to publish");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
             }
             //patch the package
-            if (!commandArguments.original) 
+            if (!commandArguments.original)
             {
                 bool uploadfile = false;
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"Starting to patch {filename}: ");
                 if ((commandArguments.file.Extension == ".appxbundle") || (commandArguments.file.Extension == ".msixbundle"))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Detected Bundle Package\n");
-                    Console.ForegroundColor = ConsoleColor.White;
+                    
+                    WriteLine("Detected Bundle Package", ConsoleColor.Green);
                     Console.Write($"Extracting {filename}: ");
                     string bundlepath = Path.Join(Path.GetTempPath(), "bundle");
                     if (Directory.Exists(bundlepath))
                     {
-                       Directory.Delete(bundlepath, true);
+                        Directory.Delete(bundlepath, true);
                     }
                     ZipFile.ExtractToDirectory(commandArguments.file.FullName, bundlepath, true);
                     XDocument AppxBundleManifest = XDocument.Load(Path.Join(bundlepath, "AppxMetadata\\AppxBundleManifest.xml"));
@@ -591,43 +543,39 @@ namespace Scarlett_Sideloader
                                 }
                             }
                         }
-                    } else {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("Failed to find packages from package bundle\n");
+                    }
+                    else
+                    {
+                        WriteLine("Failed to find packages from package bundle", ConsoleColor.Red);
                         return null;
                     }
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
                 else if ((commandArguments.file.Extension == ".appxupload") || (commandArguments.file.Extension == ".msixupload"))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Detected upload file (please use the --original flag in future)\n");
+                    WriteLine("Detected upload file (please use the --original flag in future)", ConsoleColor.Yellow);
                     uploadfile = true;
                 }
                 else if ((commandArguments.file.Extension == ".appx") || (commandArguments.file.Extension == ".msix"))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Detected package file\n");
+                    WriteLine("Detected package file", ConsoleColor.Green);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Unknown filetype\n");
+                    WriteLine("Unknown filetype", ConsoleColor.Red);
                     return null;
                 }
 
-                
+
                 if (!uploadfile)
                 {
                     //patch appxmanifest
-                    Console.ForegroundColor = ConsoleColor.White;
                     Console.Write($"Patching appxmanifest for {filename}: ");
                     string packagepath = Path.Join(Path.GetTempPath(), "package", $"{System.IO.Path.GetFileNameWithoutExtension(filename)}");
                     //clear out package path too
                     if (Directory.Exists(packagepath))
                     {
-                       Directory.Delete(packagepath, true);
+                        Directory.Delete(packagepath, true);
                     }
                     ZipFile.ExtractToDirectory(filepath, packagepath, true);
                     XDocument AppxManifest = XDocument.Load(Path.Join(packagepath, "AppxManifest.xml"));
@@ -644,36 +592,33 @@ namespace Scarlett_Sideloader
                     XElement publisherdisplayname = AppxManifest.Root.Element(XName.Get("Properties", defaultnamespace)).Element(XName.Get("PublisherDisplayName", defaultnamespace));
                     publisherdisplayname.Value = identity.PublisherDisplayName;
                     AppxManifest.Save(Path.Join(packagepath, "AppxManifest.xml"));
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                    Console.ForegroundColor = ConsoleColor.White;
+                    WriteLine("Success!", ConsoleColor.Green);
                     Console.Write($"Generating patched {filename}: ");
-                    if (File.Exists(Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe")) || File.Exists(Path.Join(Directory.GetCurrentDirectory(), "makemsix", "makemsix")))
+                    //if we are on windows and the exe or if we aren't and the binary can't be found
+                    if ((!File.Exists(Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe")) && System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) || (!File.Exists(Path.Join(Directory.GetCurrentDirectory(), "makemsix", "makemsix")) && !System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows)))
                     {
-                        string appxpath = Path.Join(Path.GetTempPath(), $"Patched-{filename}");
-                        bool msixcreation = retryFunction(() => MakeMsix(packagepath, appxpath), 3);
-                        //clear out package path too
-                        if (Directory.Exists(packagepath))
-                        {
-                            Directory.Delete(packagepath, true);
-                        }
-                        if (msixcreation)
-                        {
-                            filepath = appxpath;
-                            filename = $"Patched-{filename}";
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.Write("Success!\n");
-                        } else {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Write("Failed to create patched appx\n");
-                            return null;
-                        }
-                    } else {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("MakeMsix was not found\n");
+                        WriteLine("MakeMsix was not found", ConsoleColor.Red);
                         return null;
                     }
-                    Console.ForegroundColor = ConsoleColor.White;
+
+                    string appxpath = Path.Join(Path.GetTempPath(), $"Patched-{filename}");
+                    bool msixcreation = retryFunction(() => MakeMsix(packagepath, appxpath), 3);
+                    //clear out package path too
+                    if (Directory.Exists(packagepath))
+                    {
+                        Directory.Delete(packagepath, true);
+                    }
+                    if (msixcreation)
+                    {
+                        filepath = appxpath;
+                        filename = $"Patched-{filename}";
+                        WriteLine("Success!", ConsoleColor.Green);
+                    }
+                    else
+                    {
+                        WriteLine("Failed", ConsoleColor.Red);
+                        return null;
+                    }
                     Console.Write($"Generating appxsym for {filename}: ");
                     string appxsymfilename = $"{Path.GetFileNameWithoutExtension(filepath)}.appxsym";
                     string appxsympath = Path.Join(Path.GetTempPath(), appxsymfilename);
@@ -697,9 +642,7 @@ namespace Scarlett_Sideloader
                         using (var entryStream = entry.Open()) // copy the stream into the entry
                             stream.CopyTo(entryStream);
                     }
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                    Console.ForegroundColor = ConsoleColor.White;
+                    WriteLine("Success!", ConsoleColor.Green);
                     Console.Write($"Generating appxupload from {filename}: ");
                     string appxuploadfilename = $"{Path.GetFileNameWithoutExtension(filepath)}.appxupload";
                     string appxuploadpath = Path.Join(Path.GetTempPath(), appxuploadfilename);
@@ -733,27 +676,24 @@ namespace Scarlett_Sideloader
                     }
                     filepath = appxuploadpath;
                     filename = appxuploadfilename;
+
+                    WriteLine("Success!", ConsoleColor.Green);
                 }
             }
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Getting upload info for {appname}: ");
             CreateUploadInfo createuploadinfo = new CreateUploadInfo() { FileName = filename };
             NeededUploadInfo neededuploadinfo = GetUploadInfo(createuploadinfo, neededsubmissioninfo);
             if (neededuploadinfo != null)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to get upload info for app, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
             }
 
             string token = HttpUtility.ParseQueryString(new Uri(neededuploadinfo.UploadInfo.SasUrl).Query).Get("token");
-            
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting Metadata for {appname}: ");
 
             //read package as a filestream
@@ -774,8 +714,7 @@ namespace Scarlett_Sideloader
             response.Wait();
             if (!response.Result.IsSuccessStatusCode)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set metadata for app, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
@@ -786,206 +725,178 @@ namespace Scarlett_Sideloader
             NeededMetadata neededmetadata;
             if (!response.Result.IsSuccessStatusCode)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set metadata for app, cookie is likely invalid");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             string responseresult = response.Result.Content.ReadAsStringAsync().Result;
             neededmetadata = JsonConvert.DeserializeObject<NeededMetadata>(responseresult);
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Success!\n");
+            WriteLine("Success!", ConsoleColor.Green);
 
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write($"Calculating number of chunks needed for {appname}: ");
             //chunksize in bytes
             int chunksize = Convert.ToInt32(neededmetadata.ChunkSize);
             //number of chunks
             decimal chunksnum = packagestream.Length / chunksize;
-            int chunks = Convert.ToInt32(Math.Ceiling(chunksnum))+1;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Success!\n");
+            int chunks = Convert.ToInt32(Math.Ceiling(chunksnum)) + 1;
 
+            
             for (int i = 0; i < chunks; i++)
             {
                 int chunknum = i + 1;
+                Console.Write($"Setting metadata for chunk number {chunknum} of {chunks}: ");
                 if (!UploadChunk(token, chunknum, null, neededuploadinfo, HttpMethod.Options))
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to setmetadata for chunk");
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
+                WriteLine("Success!", ConsoleColor.Green);
+                
             }
 
-                for (int i = 0; i < chunks; i++)
+            for (int i = 0; i < chunks; i++)
             {
                 long position = (i * (long)chunksize);
                 int toRead = (int)Math.Min(packagestream.Length - position + 1, chunksize);
                 byte[] buffer = new byte[toRead];
                 packagestream.Read(buffer, 0, buffer.Length);
-                int chunknum = i + 1;   
-                Console.ForegroundColor = ConsoleColor.White;
+                int chunknum = i + 1;
                 Console.Write($"Uploading chunk number {chunknum} of {chunks}: ");
                 if (retryFunction(() => UploadChunk(token, chunknum, buffer, neededuploadinfo, HttpMethod.Post), 3))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Success!\n");
-                } else {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to upload chunk");
+                    WriteLine("Success!", ConsoleColor.Green);
+                }
+                else
+                {
+                    WriteLine("Failed", ConsoleColor.Red);
                     return null;
                 }
             }
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Marking upload as finished: ");
 
             if (!retryFunction(() => UploadFinished(token, neededuploadinfo, HttpMethod.Options), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to mark upload as finished");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
-            if (retryFunction(() => UploadFinished(token, neededuploadinfo, HttpMethod.Post),3))
+            if (!retryFunction(() => UploadFinished(token, neededuploadinfo, HttpMethod.Post), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
-            } else {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to mark upload as finished");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
+            
+            WriteLine("Success!", ConsoleColor.Green);
 
-            CommitalInfo commitalinfo = new CommitalInfo() { Id = neededuploadinfo.Id};
+            CommitalInfo commitalinfo = new CommitalInfo() { Id = neededuploadinfo.Id };
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Commiting upload: ");
             if (retryFunction(() => CommitUpload(commitalinfo), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to commit upload");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Set target platforms: ");
 
             if (retryFunction(() => SetPlatforms(neededsubmissioninfo), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
-            } else {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set target platforms");
+                WriteLine("Success!", ConsoleColor.Green);
+            }
+            else
+            {
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             //set languages
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write($"Setting languages for {appname}: ");
+            Console.Write($"Getting manage languages request verification token: ");
             //get needed verification token
             string managelanguagerequestverificationtoken = GetManageLanguagesRequestToken(createdappinfo, neededsubmissioninfo);
             if (managelanguagerequestverificationtoken == null)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to get requestverificationtoken");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
+
+            WriteLine("Success!", ConsoleColor.Green);
+
+            Console.Write($"Setting languages for {appname}: ");
             if (SetLanguages(createdappinfo, neededsubmissioninfo, managelanguagerequestverificationtoken))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
-            } else {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set languages");
+                WriteLine("Success!", ConsoleColor.Green);
+            }
+            else
+            {
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             //get listing info
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Getting listing info {appname}: ");
 
             //get needed listing info
             ListingInfo listinginfo = GetListingInfo(createdappinfo, neededsubmissioninfo);
             if (listinginfo == null)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to get listing info");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
 
             //set listing
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Setting languages for {appname}: ");
-            
+
             if (retryFunction(() => SetListing(createdappinfo, neededsubmissioninfo, listinginfo, appname, commandArguments.description), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to set listing");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             //upload screenshot
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"Adding screenshot for {appname}: ");
             if (retryFunction(() => UploadScreenShot(neededsubmissioninfo, createdappinfo, HttpMethod.Post, listinginfo, commandArguments.screenshotname), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to add screenshot");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
             //push to store
-            Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"submitting {appname} to store: ");
-            if (retryFunction(() => SubmitToStore(neededsubmissioninfo, createdappinfo),3))
+            if (retryFunction(() => SubmitToStore(neededsubmissioninfo, createdappinfo), 3))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success!\n");
+                WriteLine("Success!", ConsoleColor.Green);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to submit to store");
+                WriteLine("Failed", ConsoleColor.Red);
                 return null;
             }
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"SUCCESS!!!");
-            Console.ForegroundColor = ConsoleColor.White;
+            
+            WriteLine("SUCCESS!!!", ConsoleColor.Magenta);
             Console.WriteLine($"You can observe the progress here:");
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"https://partner.microsoft.com/en-us/dashboard/products/{createdappinfo.bigId}/submissions/{neededsubmissioninfo.id}/CertificationStatus\n");
-            Console.ForegroundColor = ConsoleColor.White;
+            WriteLine($"https://partner.microsoft.com/en-us/dashboard/products/{createdappinfo.bigId}/submissions/{neededsubmissioninfo.id}/CertificationStatus\n", ConsoleColor.Blue);
             Console.WriteLine("Once the app passes certification you can use the following deeplink to install the app:");
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"ms-windows-store://pdp/?productid={createdappinfo.bigId}");
-            Console.ForegroundColor = ConsoleColor.White;
+            WriteLine($"ms-windows-store://pdp/?productid={createdappinfo.bigId}", ConsoleColor.Blue);
+            
             return createdappinfo.bigId;
-            // TODO: idk man why the f*** are you looking at my code in so much depth that you found this
-            //curse words: f***, s***, c***, b****, a***
         }
 
 
@@ -1071,7 +982,7 @@ namespace Scarlett_Sideloader
                 pageDocument.LoadHtml(responseresult);
                 ListingInfo listinginfo = new ListingInfo();
                 var node = pageDocument.DocumentNode.SelectSingleNode("//*[@name=\"__RequestVerificationToken\"]");
-                listinginfo.RequestVerificationToken= node.Attributes["Value"].Value;
+                listinginfo.RequestVerificationToken = node.Attributes["Value"].Value;
                 var nodetwo = pageDocument.DocumentNode.SelectSingleNode("//*[@name=\"CommonListing.Id\"]");
                 listinginfo.ListingId = nodetwo.Attributes["Value"].Value;
                 return listinginfo;
@@ -1752,7 +1663,7 @@ namespace Scarlett_Sideloader
                 tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "DetailedHardwareViewModel.GraphicsRecText" };
                 form.Add(tempcontent);
             }
-            else 
+            else
             {
                 form = new MultipartFormDataContent(("----WebKitFormBoundary" + RandomString(16)));
                 HttpContent tempcontent;
@@ -2415,7 +2326,7 @@ namespace Scarlett_Sideloader
             }
 
             request.Content = form;
-            
+
             var response = client.SendAsync(request);
             response.Wait();
             int statuscode = (int)response.Result.StatusCode;
@@ -2757,7 +2668,7 @@ namespace Scarlett_Sideloader
             tempcontent.Headers.Clear();
             tempcontent.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data") { Name = "ListingModels[0].Listing.DevStudio" };
             form.Add(tempcontent);
-            
+
             string url = (partneruri.ToString() + $"en-us/dashboard/listings/Listing/Listings?appId={createdappinfo.bigId}&submissionId={neededsubmissioninfo.id}&languageId=4&listingId={listinginfo.ListingId}");
             var response = client.PostAsync(url, form);
             response.Wait();
@@ -2800,10 +2711,12 @@ namespace Scarlett_Sideloader
             if (returnedauthinfo != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
-                EnableClass enableclass = new EnableClass() { LocalizedTitleNames =  new List<LocalizedTitleName>() { new LocalizedTitleName() {Value = $"{name} - Game" } } };
+                EnableClass enableclass = new EnableClass() { LocalizedTitleNames = new List<LocalizedTitleName>() { new LocalizedTitleName() { Value = $"{name} - Game" } } };
                 var content = JsonConvert.SerializeObject(enableclass);
                 request.Content = new StringContent(content, System.Text.Encoding.UTF8, "application/json");
-            } else {
+            }
+            else
+            {
                 request.Headers.Add("Access-Control-Request-Method", "POST");
             }
 
@@ -2842,13 +2755,13 @@ namespace Scarlett_Sideloader
             }
             else
             {
-                    return null;
+                return null;
             }
         }
 
         static bool SubmitToStore(NeededSubmissionInfo neededsubmissioninfo, NeededAppInfo neededappinfo)
         {
-            string url = partneruri .ToString() + $"en-us/dashboard/product/api/{neededappinfo.bigId}/submissions/{neededsubmissioninfo.id}/submit";
+            string url = partneruri.ToString() + $"en-us/dashboard/product/api/{neededappinfo.bigId}/submissions/{neededsubmissioninfo.id}/submit";
             var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Content = new StringContent(JsonConvert.SerializeObject(new SubmitInfo()), System.Text.Encoding.UTF8, "application/json");
             var response = client.SendAsync(request);
@@ -2867,7 +2780,7 @@ namespace Scarlett_Sideloader
         {
             string url = xbluri.ToString() + $"products/{xblids.ProductId}/sandboxes/{xblaccinfo.OpenTierSandboxId}/publish?option=Validate";
             var request = new HttpRequestMessage(httpmethod, url);
-            
+
             if (returnedauthinfo != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
@@ -2888,7 +2801,7 @@ namespace Scarlett_Sideloader
                 {
                     TempValidateClass responseobject = JsonConvert.DeserializeObject<TempValidateClass>(responseresult);
                     string status = responseobject.Status;
-                    while (status != "Success") 
+                    while (status != "Success")
                     {
                         Thread.Sleep(5000);
                         request = new HttpRequestMessage(httpmethod, url);
@@ -2901,7 +2814,9 @@ namespace Scarlett_Sideloader
                         status = responseobject.Status;
                     }
                     return responseobject.SourceVersion;
-                } else {
+                }
+                else
+                {
                     return null;
                 }
             }
@@ -2915,7 +2830,7 @@ namespace Scarlett_Sideloader
         {
             string url = xbluri.ToString() + $"products/{xblids.ProductId}/sandboxes/RETAIL/sources/{xblaccinfo.OpenTierSandboxId}/copy";
             var request = new HttpRequestMessage(httpmethod, url);
-            
+
             if (returnedauthinfo != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
@@ -2933,9 +2848,11 @@ namespace Scarlett_Sideloader
             {
                 string responseresult = response.Result.Content.ReadAsStringAsync().Result;
                 if (responseresult != "" && httpmethod == HttpMethod.Post)
-                {      
+                {
                     return true;
-                } else {
+                }
+                else
+                {
                     return false;
                 }
             }
@@ -2949,7 +2866,7 @@ namespace Scarlett_Sideloader
         {
             string url = xbluri.ToString() + $"products/{xblids.ProductId}/sandboxes/{xblaccinfo.OpenTierSandboxId}/publish";
             var request = new HttpRequestMessage(httpmethod, $"{url}?option=Publish&version={sourceversion}");
-            
+
             if (returnedauthinfo != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue($"XBL3.0", $"x=-;{returnedauthinfo.Token}");
@@ -2970,7 +2887,7 @@ namespace Scarlett_Sideloader
                 {
                     TempValidateClass responseobject = JsonConvert.DeserializeObject<TempValidateClass>(responseresult);
                     string status = responseobject.Status;
-                    while (status != "Success") 
+                    while (status != "Success")
                     {
                         Thread.Sleep(2000);
                         request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -2983,7 +2900,9 @@ namespace Scarlett_Sideloader
                         status = responseobject.Status;
                     }
                     return true;
-                } else {
+                }
+                else
+                {
                     return false;
                 }
             }
@@ -3034,7 +2953,9 @@ namespace Scarlett_Sideloader
             {
                 string responseresult = response.Result.Content.ReadAsStringAsync().Result;
                 return JsonConvert.DeserializeObject<List<NeededGroupInfo>>(responseresult);
-            } else {
+            }
+            else
+            {
                 return null;
             }
         }
@@ -3047,7 +2968,7 @@ namespace Scarlett_Sideloader
             response.Wait();
             if (response.Result.IsSuccessStatusCode)
             {
-                
+
                 string responseresult = response.Result.Content.ReadAsStringAsync().Result;
                 return JsonConvert.DeserializeObject<NeededGroupInfo>(responseresult);
             }
@@ -3084,7 +3005,7 @@ namespace Scarlett_Sideloader
             var stringPayload = JsonConvert.SerializeObject(appinfo);
             var content = new StringContent(stringPayload, System.Text.Encoding.UTF8, "application/json");
             var response = client.PostAsync((partneruri.ToString() + "/en-US/dashboard/product/api/products"), content);
-            response.Wait();    
+            response.Wait();
             if (response.Result.IsSuccessStatusCode)
             {
                 string responseresult = response.Result.Content.ReadAsStringAsync().Result;
@@ -3157,7 +3078,7 @@ namespace Scarlett_Sideloader
             else
             {
                 return false;
-               // return null;
+                // return null;
             }
         }
 
@@ -3176,7 +3097,7 @@ namespace Scarlett_Sideloader
             }
         }
 
-        
+
 
         static bool SetAvailibility(StoreInfo storeinfo, NeededSubmissionInfo neededsubmissioninfo)
         {
@@ -3216,7 +3137,7 @@ namespace Scarlett_Sideloader
             var stringPayload = JsonConvert.SerializeObject(ageratingapplication);
             var content = new StringContent(stringPayload, System.Text.Encoding.UTF8, "application/json");
             var response = client.PutAsync((partneruri.ToString() + $"/en-US/dashboard/ageratings/api/products/{neededAppInfo.bigId}/settings?submissionId={neededsubmissioninfo.id}"), content);
-            response.Wait();    
+            response.Wait();
             if (response.Result.IsSuccessStatusCode)
             {
                 return true;
@@ -3282,7 +3203,7 @@ namespace Scarlett_Sideloader
             }
         }
 
-        static bool UploadChunk(string token, int chunknum, byte[] chunk, NeededUploadInfo neededuploadinfo, HttpMethod httpmethod) 
+        static bool UploadChunk(string token, int chunknum, byte[] chunk, NeededUploadInfo neededuploadinfo, HttpMethod httpmethod)
         {
             var uriBuilder = new UriBuilder((xboxuri + $"/upload/uploadchunk/{neededuploadinfo.UploadInfo.XfusId}"));
             var query = HttpUtility.ParseQueryString(uriBuilder.Query);
@@ -3332,7 +3253,7 @@ namespace Scarlett_Sideloader
             }
             string responseresult = response.Result.Content.ReadAsStringAsync().Result;
             ScreenshotResponse screenshotresponse = JsonConvert.DeserializeObject<ScreenshotResponse>(responseresult);
-           
+
             //update request
             string updateurl = partneruri + $"en-us/dashboard/listings/FileUploadV2/UpdateStatus?parentId={neededappinfo.bigId}&parentType=0&id={screenshotresponse.FileId}";
             request = new HttpRequestMessage(HttpMethod.Post, updateurl);
@@ -3387,7 +3308,7 @@ namespace Scarlett_Sideloader
             {
                 return false;
             }
-            
+
             request = new HttpRequestMessage(HttpMethod.Put, ingestblockurl);
             byte[] screenshotdata = new byte[screenshot.Length];
             screenshot.Read(screenshotdata, 0, (int)(screenshot.Length));
@@ -3537,7 +3458,7 @@ namespace Scarlett_Sideloader
                 makemsixpath = Path.Join(Directory.GetCurrentDirectory(), "MakeMsix", "MakeMsix.exe");
 
             string args = $"pack -d \"{inputfolder}\" -p \"{outputpath}\"";
-    
+
             if (File.Exists(outputpath))
             {
                 File.Delete(outputpath);
